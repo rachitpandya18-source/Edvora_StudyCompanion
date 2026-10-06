@@ -198,9 +198,8 @@ def submit_quiz(request: QuizSubmitRequest):
         "score": correct_count,
         "total": total_questions,
         "quiz_mastery": round(mastery, 2),
-        "learner_mastery": record_answer(
+        "learner_mastery": get_concept_mastery(
             request.topic,
-            request.concept,
-            False
+            request.concept
         )
-    }
+    }
