@@ -2,15 +2,11 @@
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
+.app {
+  min-height: 100vh;
   font-family: Arial, sans-serif;
   background: #f5f7fb;
   color: #1f2937;
-}
-
-.app {
-  min-height: 100vh;
 }
 
 .header {
@@ -36,7 +32,7 @@ body {
   padding: 0 20px;
 }
 
-section {
+.app section {
   background: white;
   border-radius: 12px;
   padding: 24px;
@@ -44,7 +40,7 @@ section {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
 }
 
-section h2 {
+.app section h2 {
   margin-top: 0;
 }
 
@@ -68,7 +64,7 @@ section h2 {
 
 /* Question */
 
-textarea {
+.app textarea {
   width: 100%;
   min-height: 120px;
   padding: 15px;
@@ -79,7 +75,7 @@ textarea {
   margin-bottom: 15px;
 }
 
-button {
+.app button {
   background: #111827;
   color: white;
   border: none;
@@ -89,7 +85,7 @@ button {
   cursor: pointer;
 }
 
-button:disabled {
+.app button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -130,6 +126,7 @@ button:disabled {
 .source span {
   color: #6b7280;
 }
+
 /* Make card headings clearly visible */
 .upload-card h2,
 .document-card h2,
@@ -139,6 +136,7 @@ button:disabled {
   color: #111827 !important;
   opacity: 1 !important;
 }
+
 .answer h1,
 .answer h2,
 .answer h3,
@@ -171,6 +169,7 @@ button:disabled {
   margin: 20px 0;
   overflow-x: auto;
 }
+
 /* =========================================
    QUIZ UI
    ========================================= */
@@ -212,7 +211,6 @@ button:disabled {
   cursor: not-allowed;
 }
 
-
 /* Quiz information */
 
 .quiz-info {
@@ -220,7 +218,6 @@ button:disabled {
   margin-bottom: 25px;
   font-size: 15px;
 }
-
 
 /* Individual question */
 
@@ -241,7 +238,6 @@ button:disabled {
   margin-bottom: 18px;
 }
 
-
 /* Options container */
 
 .quiz-options {
@@ -250,28 +246,20 @@ button:disabled {
   gap: 10px;
 }
 
-
 /* Individual option */
 
 .quiz-option {
   display: flex;
   align-items: center;
   gap: 10px;
-
   width: 100%;
   box-sizing: border-box;
-
   padding: 12px 14px;
-
   border: 1px solid #d1d5db;
   border-radius: 8px;
-
   background: #ffffff;
-
   cursor: pointer;
-
   color: #111827;
-
   transition:
     background 0.15s ease,
     border-color 0.15s ease;
@@ -292,7 +280,6 @@ button:disabled {
   line-height: 1.4;
 }
 
-
 /* Quiz error */
 
 .quiz-error {
@@ -300,6 +287,7 @@ button:disabled {
   margin-top: 12px;
   font-weight: 500;
 }
+
 .recommendations-section {
   margin-top: 24px;
   padding: 20px;
