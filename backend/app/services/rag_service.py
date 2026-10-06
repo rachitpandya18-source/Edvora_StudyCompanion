@@ -66,6 +66,21 @@ ANSWER:
     # 4. Generate answer
     answer = generate_response(prompt)
 
+    # If the material does not contain the answer, do not falsely cite chunks as sources
+    not_found_phrases = [
+        "could not find this information",
+        "cannot find this information",
+        "not found in the provided",
+        "not present in the provided",
+        "not mentioned in the provided",
+        "not contained in the provided",
+    ]
+    if any(phrase in answer.lower() for phrase in not_found_phrases):
+        return {
+            "answer": answer,
+            "sources": []
+        }
+
     # 5. Preserve source metadata ourselves
     sources = []
 

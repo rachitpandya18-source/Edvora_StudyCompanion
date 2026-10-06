@@ -387,15 +387,19 @@ def _filter_questions(
     # ---------------------------------------------
 
     for question in generated_questions:
+        if not isinstance(question, dict):
+            print("[QUIZ] Rejected non-dictionary question:", question)
+            continue
+
         question_text = question.get("question", "").strip()
 
-        try:
-            _validate_question(question)
-        except ValueError as error:
+        is_valid, reason = _validate_question(question)
+        if not is_valid:
             print("[QUIZ] Rejected invalid question:")
             print(question_text)
-            print("[QUIZ] Reason:", error)
-            rejected_texts.append(question_text)
+            print("[QUIZ] Reason:", reason)
+            if question_text:
+                rejected_texts.append(question_text)
             continue
 
         if _is_document_structure_question(question_text):
