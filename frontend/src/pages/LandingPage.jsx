@@ -1,8 +1,24 @@
-export default function LandingPage({ onEnterWorkspace }) {
+export default function LandingPage({ onEnterWorkspace, onNavigateToAuth }) {
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleSignIn = () => {
+    if (onNavigateToAuth) {
+      onNavigateToAuth('login');
+    } else if (onEnterWorkspace) {
+      onEnterWorkspace();
+    }
+  };
+
+  const handleSignUp = () => {
+    if (onNavigateToAuth) {
+      onNavigateToAuth('signup');
+    } else if (onEnterWorkspace) {
+      onEnterWorkspace();
     }
   };
 
@@ -35,13 +51,13 @@ export default function LandingPage({ onEnterWorkspace }) {
               How it works
             </button>
             <button
-              onClick={onEnterWorkspace}
+              onClick={handleSignIn}
               className="text-sm text-neutral-400 hover:text-white transition-colors cursor-pointer bg-transparent border-0 p-0"
             >
               Sign in
             </button>
             <button
-              onClick={onEnterWorkspace}
+              onClick={handleSignUp}
               className="inline-flex items-center justify-center px-4 py-1.5 text-sm font-medium rounded-lg bg-primary text-[#0a0012] hover:bg-primary-fixed-dim transition-colors cursor-pointer border-0"
             >
               Start learning
@@ -64,7 +80,7 @@ export default function LandingPage({ onEnterWorkspace }) {
               </p>
               <div className="flex flex-wrap items-center gap-4 pt-2">
                 <button
-                  onClick={onEnterWorkspace}
+                  onClick={handleSignUp}
                   className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium rounded-lg bg-primary text-[#0a0012] hover:bg-primary-fixed-dim transition-colors cursor-pointer border-0"
                 >
                   Start learning
@@ -479,7 +495,7 @@ export default function LandingPage({ onEnterWorkspace }) {
             </h2>
             <div>
               <button
-                onClick={onEnterWorkspace}
+                onClick={handleSignUp}
                 className="inline-flex items-center justify-center px-7 py-3.5 text-base font-semibold rounded-lg bg-primary text-[#0a0012] hover:bg-primary-fixed-dim transition-colors cursor-pointer border-0"
               >
                 Create your learning space
