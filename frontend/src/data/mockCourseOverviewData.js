@@ -1,0 +1,148 @@
+export const defaultCourseOverviewData = {
+  courseName: "Data Structures & Algorithms",
+  mastery: 68,
+  studyNext: {
+    topic: "AVL Trees",
+    mastery: 43,
+    statusText: "Needs attention",
+    statusVariant: "attention",
+    whyThis: "You recently struggled with Left-Right and Right-Left rotations.",
+    recommendedActions: [
+      {
+        id: "act-1",
+        icon: "menu_book",
+        title: "Review AVL rotations",
+        accent: "accent",
+      },
+      {
+        id: "act-2",
+        icon: "fact_check",
+        title: "Practice 3 targeted questions",
+        accent: "success",
+      },
+    ],
+    estimatedTime: "12 min",
+  },
+  topics: [
+    {
+      id: "top-1",
+      name: "Arrays",
+      status: "Strong",
+      percentage: 92,
+      variant: "strong",
+    },
+    {
+      id: "top-2",
+      name: "Linked Lists",
+      status: "Strong",
+      percentage: 84,
+      variant: "strong",
+    },
+    {
+      id: "top-3",
+      name: "Trees",
+      status: "Developing",
+      percentage: 62,
+      variant: "developing",
+    },
+    {
+      id: "top-4",
+      name: "AVL Trees",
+      status: "Needs attention",
+      percentage: 43,
+      variant: "attention",
+      isStudyNext: true,
+    },
+  ],
+  quickActions: [
+    {
+      id: "tutor",
+      title: "Ask your tutor",
+      subtitle: "Ask a question about this course",
+      icon: "chat_bubble",
+      accent: "accent",
+      targetSection: "tutor",
+    },
+    {
+      id: "practice",
+      title: "Practice",
+      subtitle: "Test your understanding",
+      icon: "edit_note",
+      accent: "success",
+      targetSection: "practice",
+    },
+    {
+      id: "materials",
+      title: "Browse materials",
+      subtitle: "Open your PDFs, slides and lectures",
+      icon: "folder_copy",
+      accent: "neutral",
+      targetSection: "materials",
+    },
+  ],
+  learningMap: {
+    nodes: [
+      {
+        id: "lm-arrays",
+        title: "Arrays",
+        status: "strong",
+        note: "Prerequisite mastered",
+      },
+      {
+        id: "lm-linked-lists",
+        title: "Linked Lists",
+        status: "strong",
+        note: "Pointers & dynamic chains",
+      },
+      {
+        id: "lm-trees",
+        title: "Trees",
+        status: "developing",
+        note: "Hierarchical data",
+        children: [
+          {
+            id: "lm-bst",
+            title: "Binary Trees",
+            status: "strong",
+            note: "BST property",
+          },
+          {
+            id: "lm-avl",
+            title: "AVL Trees",
+            status: "attention",
+            note: "Rotations & balance invariant",
+            highlight: true,
+          },
+        ],
+      },
+    ],
+    footnote: "See how the topics in this course connect and what to learn next.",
+  },
+  recentActivity: [
+    {
+      id: "act-1",
+      title: "Completed Trees assessment",
+      time: "Today",
+      detail: "Score 85%",
+      icon: "check",
+      variant: "strong",
+    },
+    {
+      id: "act-2",
+      title: "Asked tutor about AVL rotations",
+      time: "Today",
+      detail: "3 sources cited",
+      icon: "chat_bubble",
+      variant: "accent",
+    },
+    {
+      id: "act-3",
+      title: "Reviewed Binary Search Trees",
+      time: "Yesterday",
+      detail: "Trees.pdf (p. 42)",
+      icon: "menu_book",
+      variant: "neutral",
+    },
+  ],
+};
+
