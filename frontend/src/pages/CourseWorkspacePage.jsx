@@ -7,6 +7,7 @@ import CourseMasteryList from '../components/course/CourseMasteryList';
 import CourseQuickActions from '../components/course/CourseQuickActions';
 import LearningMapPreview from '../components/course/LearningMapPreview';
 import CourseRecentActivity from '../components/course/CourseRecentActivity';
+import CourseTutorView from '../components/tutor/CourseTutorView';
 import { defaultCourseOverviewData } from '../data/mockCourseOverviewData';
 
 /**
@@ -81,24 +82,10 @@ export default function CourseWorkspacePage({
 
       case 'tutor':
         return (
-          <div className="rounded-xl border border-[#222227] bg-[#121215] p-8 sm:p-12 text-center max-w-2xl mx-auto space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-[#a78bfa]/10 border border-[#a78bfa]/20 text-[#a78bfa] flex items-center justify-center mx-auto">
-              <span className="material-symbols-outlined text-[32px]">chat_bubble</span>
-            </div>
-            <h3 className="text-2xl font-bold text-white tracking-tight">AI Tutor</h3>
-            <p className="text-[15px] text-[#a1a1aa] leading-relaxed">
-              Course-grounded AI tutoring with exact citations to your lecture slides and textbooks.
-            </p>
-            <div className="pt-4 flex flex-wrap items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => setActiveSection('overview')}
-                className="px-4 py-2 rounded-lg bg-[#18181c] border border-[#2e2e36] text-sm font-medium text-white hover:bg-[#222227] transition-colors cursor-pointer"
-              >
-                Back to Overview
-              </button>
-            </div>
-          </div>
+          <CourseTutorView
+            user={user}
+            courseName={courseData.courseName}
+          />
         );
 
       case 'practice':
