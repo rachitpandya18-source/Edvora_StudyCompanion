@@ -1,0 +1,101 @@
+export const defaultProgressData = {
+  courseName: 'Data Structures & Algorithms',
+  courseMastery: {
+    percentage: 68,
+    status: 'Developing',
+    statusVariant: 'developing',
+    message: "You're making steady progress. AVL Trees needs the most attention.",
+  },
+  topicSummary: {
+    total: 16,
+    strong: 8,
+    developing: 5,
+    needsAttention: 3,
+  },
+  topics: [
+    {
+      id: 'top-1',
+      name: 'Arrays',
+      mastery: 92,
+      status: 'Strong',
+      variant: 'strong',
+    },
+    {
+      id: 'top-2',
+      name: 'Linked Lists',
+      mastery: 84,
+      status: 'Strong',
+      variant: 'strong',
+    },
+    {
+      id: 'top-3',
+      name: 'Stacks & Queues',
+      mastery: 78,
+      status: 'Developing',
+      variant: 'developing',
+    },
+    {
+      id: 'top-4',
+      name: 'Trees',
+      mastery: 62,
+      status: 'Developing',
+      variant: 'developing',
+    },
+    {
+      id: 'top-5',
+      name: 'Binary Search Trees',
+      mastery: 58,
+      status: 'Developing',
+      variant: 'developing',
+    },
+    {
+      id: 'top-6',
+      name: 'AVL Trees',
+      mastery: 43,
+      status: 'Needs attention',
+      variant: 'attention',
+    },
+    {
+      id: 'top-7',
+      name: 'Graphs',
+      mastery: 36,
+      status: 'Needs attention',
+      variant: 'attention',
+    },
+  ],
+  needsAttention: {
+    topic: 'AVL Trees',
+    mastery: 43,
+    status: 'Needs attention',
+    description:
+      'Recent answers suggest difficulty with Left-Right and Right-Left rotations.',
+    recommendedNextStep:
+      'Review AVL rotations → Practice 3 targeted questions',
+    footnote: 'Based on your recent assessment and tutoring activity.',
+    practiceActionLabel: 'Start adaptive practice',
+    tutorActionLabel: 'Ask Tutor about rotations →',
+  },
+  recentProgress: [
+    {
+      id: 'rp-1',
+      title: 'Completed Trees assessment',
+      change: '+8% Trees mastery',
+      changeVariant: 'positive',
+      time: 'Today',
+    },
+    {
+      id: 'rp-2',
+      title: 'Tutor session',
+      change: 'AVL Trees misconception identified',
+      changeVariant: 'attention',
+      time: 'Yesterday',
+    },
+    {
+      id: 'rp-3',
+      title: 'Adaptive practice',
+      change: '+5% AVL Trees mastery',
+      changeVariant: 'positive',
+      time: '2 days ago',
+    },
+  ],
+};
