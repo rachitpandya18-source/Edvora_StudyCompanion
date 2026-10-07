@@ -6,7 +6,7 @@ import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import "../App.css";
 
-export default function StudyWorkspace({ onBack }) {
+export default function StudyWorkspace({ onBack, courseName }) {
   const [file, setFile] = useState(null);
   const [filename, setFilename] = useState("");
   const [question, setQuestion] = useState("");
@@ -298,7 +298,7 @@ export default function StudyWorkspace({ onBack }) {
 
       {/* Header */}
       <header className="header">
-        <h1>Personalized AI Study Companion</h1>
+        <h1>{courseName || "Personalized AI Study Companion"}</h1>
         <p>Ask questions from your study material</p>
       </header>
 
