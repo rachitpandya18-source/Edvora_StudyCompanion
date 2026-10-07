@@ -3,7 +3,7 @@ import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import CreateCoursePage from './pages/CreateCoursePage';
-import StudyWorkspace from './components/StudyWorkspace';
+import CourseWorkspacePage from './pages/CourseWorkspacePage';
 import { mockCourses } from './data/mockDashboardData';
 
 function App() {
@@ -101,11 +101,24 @@ function App() {
 
   if (currentView === 'workspace') {
     return (
-      <StudyWorkspace
-        currentUser={currentUser}
+      <CourseWorkspacePage
+        user={currentUser || { name: 'Alex Rivera', initials: 'AR', program: 'Computer Science' }}
         courseId={activeCourseId}
         courseName={activeCourseTitle}
-        onBack={() => setCurrentView('dashboard')}
+        recentCourses={courses}
+        onBackToDashboard={() => setCurrentView('dashboard')}
+        onCreateCourse={() => setCurrentView('create-course')}
+        onNavigate={(navId, extraData) => {
+          if (navId === 'create-course') {
+            setCurrentView('create-course');
+          } else if (navId === 'course' && extraData?.id) {
+            setActiveCourseId(extraData.id);
+            setActiveCourseTitle(extraData.title);
+            setCurrentView('workspace');
+          } else if (navId === 'home') {
+            setCurrentView('dashboard');
+          }
+        }}
       />
     );
   }
