@@ -16,10 +16,11 @@ import {
 
 export default function DashboardPage({
   user = mockStudentProfile,
+  courses = mockCourses,
   onNavigateToCourse,
   onEnterWorkspace,
+  onCreateCourse,
 }) {
-  const [courses] = useState(mockCourses);
   const [studyNext] = useState(mockStudyNext);
   const [activities] = useState(mockRecentActivity);
   const [snapshot] = useState(mockOverallSnapshot);
@@ -173,7 +174,13 @@ export default function DashboardPage({
               {/* Create Course Action */}
               <button
                 type="button"
-                onClick={() => showToast('Course creation wizard will be available in the next phase.')}
+                onClick={() => {
+                  if (onCreateCourse) {
+                    onCreateCourse();
+                  } else {
+                    showToast('Course creation wizard will be available in the next phase.');
+                  }
+                }}
                 className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#18181c] hover:bg-[#202026] border border-[#222227] text-white text-sm font-medium transition-all hover:border-[#a78bfa]/40 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[17px] text-primary">add</span>
