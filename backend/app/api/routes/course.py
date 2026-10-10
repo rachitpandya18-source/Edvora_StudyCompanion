@@ -1,5 +1,7 @@
+import shutil
+from pathlib import Path
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.database import get_db
@@ -16,6 +18,8 @@ from app.schemas.source import (
     SourceUpdate,
     SourceResponse
 )
+from app.schemas.content_unit import MaterialUploadResponse
+from app.services.ingestion_service import ingest_pdf_to_course
 
 router = APIRouter(
     prefix="/courses",
@@ -246,4 +250,107 @@ def delete_course_source(
         "source_id": source_id,
         "course_id": course_id
     }
+
+
+# =====================================================================
+# Material Upload & Ingestion (Course-scoped)
+# =====================================================================
+
+UPLOAD_BASE_DIR = Path("data/uploads")
+
+
+@router.post(
+    "/{course_id}/materials/upload",
+    response_model=MaterialUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload a material PDF to a course and index its content units"
+)
+def upload_course_material(
+    course_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    # 1. Verify course exists
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Course with ID '{course_id}' not found."
+        )
+
+    # 2. Validate PDF format
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are supported for material upload."
+        )
+
+    # 3. Collision-safe directory path per course
+    course_upload_dir = UPLOAD_BASE_DIR / course_id
+    course_upload_dir.mkdir(parents=True, exist_ok=True)
+    file_path = course_upload_dir / file.filename
+
+    # 4. Save uploaded bytes to disk
+    try:
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save uploaded file: {exc}"
+        )
+
+    # 5. Find or create Source record
+    source = db.query(Source).filter(
+        Source.course_id == course_id,
+        Source.filename == file.filename
+    ).first()
+
+    if not source:
+        source = Source(
+            course_id=course_id,
+            filename=file.filename,
+            source_type="pdf",
+            file_path=str(file_path),
+            processing_status="processing"
+        )
+        db.add(source)
+        db.commit()
+        db.refresh(source)
+    else:
+        source.file_path = str(file_path)
+        source.processing_status = "processing"
+        db.commit()
+        db.refresh(source)
+
+    # 6. Run persistent ingestion pipeline
+    try:
+        result = ingest_pdf_to_course(
+            db=db,
+            course_id=course_id,
+            source_id=source.id,
+            file_path=str(file_path),
+            replace_existing=True
+        )
+
+        return MaterialUploadResponse(
+            message="PDF uploaded and indexed successfully into course.",
+            course_id=course_id,
+            source_id=source.id,
+            filename=source.filename,
+            processing_status="completed",
+            content_units_count=result["content_units_count"],
+            page_count=result["page_count"]
+        )
+
+    except ValueError as val_err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(val_err)
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process and index PDF: {exc}"
+        )
 

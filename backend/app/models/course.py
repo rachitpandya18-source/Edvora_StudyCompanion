@@ -36,6 +36,14 @@ class Course(Base):
         passive_deletes=True
     )
 
+    # 1-to-many relationship with ContentUnit, cascade delete all associated units
+    content_units = relationship(
+        "ContentUnit",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+
     def __repr__(self):
         return f"<Course(id='{self.id}', title='{self.title}')>"
 
