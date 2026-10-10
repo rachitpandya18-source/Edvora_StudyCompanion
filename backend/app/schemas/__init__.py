@@ -45,6 +45,21 @@ from app.schemas.tutor import (
     CourseTutorResponse,
 )
 
+from app.schemas.assessment import (
+    QuestionCreate,
+    QuestionResponse,
+    QuestionDetailResponse,
+    AssessmentCreate,
+    AssessmentSummary,
+    AssessmentResponse,
+    AnswerDraftItem,
+    SaveDraftRequest,
+    SubmitAttemptRequest,
+    AttemptAnswerResponse,
+    StartAttemptRequest,
+    AssessmentAttemptResponse,
+)
+
 __all__ = [
     "CourseBase",
     "CourseCreate",
@@ -79,5 +94,18 @@ __all__ = [
     "TutorCitation",
     "CourseTutorAskRequest",
     "CourseTutorResponse",
+    "QuestionCreate",
+    "QuestionResponse",
+    "QuestionDetailResponse",
+    "AssessmentCreate",
+    "AssessmentSummary",
+    "AssessmentResponse",
+    "AnswerDraftItem",
+    "SaveDraftRequest",
+    "SubmitAttemptRequest",
+    "AttemptAnswerResponse",
+    "StartAttemptRequest",
+    "AssessmentAttemptResponse",
 ]
+
 

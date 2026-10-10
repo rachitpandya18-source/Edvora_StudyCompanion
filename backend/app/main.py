@@ -8,6 +8,7 @@ from app.api.routes.recommendation import router as recommendation_router
 from app.api.routes.course import router as course_router
 from app.api.routes.curriculum import router as curriculum_router
 from app.api.routes.course_tutor import router as course_tutor_router
+from app.api.routes.assessment import router as assessment_router
 
 
 app = FastAPI(
@@ -34,10 +35,12 @@ app.add_middleware(
 app.include_router(course_router)
 app.include_router(curriculum_router)
 app.include_router(course_tutor_router)
+app.include_router(assessment_router)
 app.include_router(tutor_router)
 app.include_router(documents_router)
 app.include_router(quiz_router)
 app.include_router(recommendation_router)
+
 
 
 @app.get("/")
