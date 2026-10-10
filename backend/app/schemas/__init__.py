@@ -12,6 +12,12 @@ from app.schemas.source import (
     SourceResponse
 )
 
+from app.schemas.content_unit import (
+    ContentUnitBase,
+    ContentUnitResponse,
+    MaterialUploadResponse
+)
+
 __all__ = [
     "CourseBase",
     "CourseCreate",
@@ -21,6 +27,9 @@ __all__ = [
     "SourceBase",
     "SourceCreate",
     "SourceUpdate",
-    "SourceResponse"
+    "SourceResponse",
+    "ContentUnitBase",
+    "ContentUnitResponse",
+    "MaterialUploadResponse",
 ]
 

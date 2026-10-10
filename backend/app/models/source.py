@@ -43,6 +43,14 @@ class Source(Base):
     # Many-to-one relationship back to Course
     course = relationship("Course", back_populates="sources")
 
+    # 1-to-many relationship with ContentUnit, cascade delete all associated units
+    content_units = relationship(
+        "ContentUnit",
+        back_populates="source",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+
     def __repr__(self):
         return f"<Source(id='{self.id}', filename='{self.filename}', status='{self.processing_status}')>"
 
