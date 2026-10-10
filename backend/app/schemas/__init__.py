@@ -38,6 +38,13 @@ from app.schemas.curriculum import (
     CourseCurriculumResponse,
 )
 
+from app.schemas.tutor import (
+    TutorStatus,
+    TutorCitation,
+    CourseTutorAskRequest,
+    CourseTutorResponse,
+)
+
 __all__ = [
     "CourseBase",
     "CourseCreate",
@@ -68,5 +75,9 @@ __all__ = [
     "PrerequisiteEdgeResponse",
     "TopicWithConceptsResponse",
     "CourseCurriculumResponse",
+    "TutorStatus",
+    "TutorCitation",
+    "CourseTutorAskRequest",
+    "CourseTutorResponse",
 ]
 
