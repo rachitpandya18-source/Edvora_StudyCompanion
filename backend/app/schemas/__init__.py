@@ -18,6 +18,26 @@ from app.schemas.content_unit import (
     MaterialUploadResponse
 )
 
+from app.schemas.curriculum import (
+    TopicBase,
+    TopicCreate,
+    TopicUpdate,
+    TopicResponse,
+    TopicListResponse,
+    ConceptBase,
+    ConceptCreate,
+    CourseConceptCreate,
+    ConceptUpdate,
+    ConceptResponse,
+    ConceptDetailResponse,
+    ConceptListResponse,
+    PrerequisiteCreate,
+    PrerequisiteResponse,
+    PrerequisiteEdgeResponse,
+    TopicWithConceptsResponse,
+    CourseCurriculumResponse,
+)
+
 __all__ = [
     "CourseBase",
     "CourseCreate",
@@ -31,5 +51,22 @@ __all__ = [
     "ContentUnitBase",
     "ContentUnitResponse",
     "MaterialUploadResponse",
+    "TopicBase",
+    "TopicCreate",
+    "TopicUpdate",
+    "TopicResponse",
+    "TopicListResponse",
+    "ConceptBase",
+    "ConceptCreate",
+    "CourseConceptCreate",
+    "ConceptUpdate",
+    "ConceptResponse",
+    "ConceptDetailResponse",
+    "ConceptListResponse",
+    "PrerequisiteCreate",
+    "PrerequisiteResponse",
+    "PrerequisiteEdgeResponse",
+    "TopicWithConceptsResponse",
+    "CourseCurriculumResponse",
 ]
 

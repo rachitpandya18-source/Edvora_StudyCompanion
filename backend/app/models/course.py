@@ -44,6 +44,22 @@ class Course(Base):
         passive_deletes=True
     )
 
+    # 1-to-many relationship with Topic, cascade delete all associated topics
+    topics = relationship(
+        "Topic",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        order_by="Topic.order_index"
+    )
+
+    # 1-to-many relationship with Concept, cascade delete all associated concepts
+    concepts = relationship(
+        "Concept",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        order_by="Concept.order_index"
+    )
+
     def __repr__(self):
         return f"<Course(id='{self.id}', title='{self.title}')>"
 
