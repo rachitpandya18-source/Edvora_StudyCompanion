@@ -60,6 +60,15 @@ class Course(Base):
         order_by="Concept.order_index"
     )
 
+    # 1-to-many relationship with Assessment, cascade delete all associated assessments
+    assessments = relationship(
+        "Assessment",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="desc(Assessment.created_at)"
+    )
+
     def __repr__(self):
         return f"<Course(id='{self.id}', title='{self.title}')>"
 
