@@ -22,7 +22,13 @@ from app.schemas.curriculum import (
     PrerequisiteResponse,
     CourseCurriculumResponse,
 )
+from app.schemas.curriculum_generator import (
+    CurriculumGenerateRequest,
+    CurriculumGenerateResponse,
+    CurriculumStatusResponse,
+)
 from app.services import curriculum_service
+from app.services import curriculum_generator_service
 
 router = APIRouter(
     prefix="/courses",
@@ -472,4 +478,53 @@ def get_course_curriculum(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(val_err)
         )
+
+
+# =====================================================================
+# Automated Curriculum Ingestion & Graph Extraction (Milestone B11)
+# =====================================================================
+
+@router.post(
+    "/{course_id}/curriculum/generate",
+    response_model=CurriculumGenerateResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Extract and generate an academic curriculum graph from indexed course materials"
+)
+def generate_curriculum(
+    course_id: str,
+    payload: CurriculumGenerateRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Extracts topics, concepts, and prerequisite DAG edges from indexed ContentUnits.
+    Supports:
+    - 'preview': Validates and returns proposed curriculum without persisting to the database.
+    - 'replace': Atomically replaces the course curriculum where safe.
+    """
+    return curriculum_generator_service.generate_curriculum(
+        db=db,
+        course_id=course_id,
+        request=payload,
+    )
+
+
+@router.get(
+    "/{course_id}/curriculum/status",
+    response_model=CurriculumStatusResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get curriculum generation status and graph metrics for a course"
+)
+def get_curriculum_status(
+    course_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Returns metrics on whether the course has an active curriculum, concept count,
+    prerequisite edge count, acyclic verification, and indexed source count.
+    """
+    return curriculum_generator_service.get_curriculum_status(
+        db=db,
+        course_id=course_id,
+    )
+
 
