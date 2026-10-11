@@ -74,6 +74,14 @@ from app.schemas.study_planner import (
     StudyPlanResponse,
 )
 
+from app.schemas.practice import (
+    PracticeQuestionItem,
+    PracticeGenerateRequest,
+    PracticeSessionResponse,
+    PracticeOptionItem,
+    PracticeConfigOptions,
+)
+
 __all__ = [
     "CourseBase",
     "CourseCreate",
@@ -128,6 +136,11 @@ __all__ = [
     "PrioritizedConceptItem",
     "StudyPlanSummary",
     "StudyPlanResponse",
+    "PracticeQuestionItem",
+    "PracticeGenerateRequest",
+    "PracticeSessionResponse",
+    "PracticeOptionItem",
+    "PracticeConfigOptions",
 ]
 
 
