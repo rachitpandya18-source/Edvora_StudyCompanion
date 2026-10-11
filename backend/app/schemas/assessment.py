@@ -19,6 +19,7 @@ class QuestionCreate(BaseModel):
     correct_answer: str = Field(..., min_length=1, description="Answer key for evaluation")
     tolerance: Optional[float] = Field(default=None, description="Tolerance for numerical answers")
     explanation: Optional[str] = Field(default=None, description="Explanation shown after submission")
+    concept_id: Optional[str] = Field(default=None, description="Optional curriculum concept ID for BKT tracing")
 
     @field_validator("question_type")
     @classmethod
@@ -43,6 +44,7 @@ class QuestionResponse(BaseModel):
 
     id: str
     assessment_id: str
+    concept_id: Optional[str] = None
     question_type: str
     prompt: str
     order_index: int
@@ -59,6 +61,7 @@ class QuestionDetailResponse(BaseModel):
 
     id: str
     assessment_id: str
+    concept_id: Optional[str] = None
     question_type: str
     prompt: str
     order_index: int

@@ -7,12 +7,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from app.models.course import Course
+from app.models.concept import Concept
 from app.models.assessment import Assessment, Question, AssessmentAttempt, AttemptAnswer
 from app.schemas.assessment import (
     AssessmentCreate,
     AssessmentSummary,
     AnswerDraftItem,
 )
+from app.services import bkt_service
 
 
 # ============================================================================
@@ -199,8 +201,21 @@ def create_assessment(db: Session, course_id: str, data: AssessmentCreate) -> As
     db.flush()
 
     for idx, q_data in enumerate(data.questions):
+        if q_data.concept_id:
+            concept = (
+                db.query(Concept)
+                .filter(Concept.id == q_data.concept_id, Concept.course_id == course_id)
+                .first()
+            )
+            if not concept:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Concept '{q_data.concept_id}' does not belong to course '{course_id}'."
+                )
+
         question = Question(
             assessment_id=assessment.id,
+            concept_id=q_data.concept_id,
             question_type=q_data.question_type,
             prompt=q_data.prompt,
             order_index=q_data.order_index if q_data.order_index is not None else idx,
@@ -468,6 +483,14 @@ def submit_attempt(
     attempt.status = "submitted"
     attempt.submitted_at = datetime.now(timezone.utc)
 
+    # Perform BKT learner mastery update if not already processed
+    if not attempt.bkt_processed:
+        bkt_service.update_mastery_from_attempt(
+            db=db,
+            course_id=course_id,
+            attempt=attempt,
+        )
+
     db.commit()
     db.refresh(attempt)
     return attempt
@@ -487,6 +510,7 @@ def format_assessment_for_student(assessment: Assessment) -> Dict[str, Any]:
         questions.append({
             "id": q.id,
             "assessment_id": q.assessment_id,
+            "concept_id": q.concept_id,
             "question_type": q.question_type,
             "prompt": q.prompt,
             "order_index": q.order_index,
@@ -535,6 +559,7 @@ def format_attempt_view(attempt: AssessmentAttempt) -> Dict[str, Any]:
             "id": ans.id,
             "attempt_id": ans.attempt_id,
             "question_id": ans.question_id,
+            "concept_id": q.concept_id if q else None,
             "student_answer": ans.student_answer,
             "question_prompt": q.prompt if q else None,
             "question_type": q.question_type if q else None,

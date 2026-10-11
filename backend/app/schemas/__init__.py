@@ -60,6 +60,12 @@ from app.schemas.assessment import (
     AssessmentAttemptResponse,
 )
 
+from app.schemas.learner_mastery import (
+    LearnerMasteryInitRequest,
+    LearnerConceptMasteryResponse,
+    LearnerCourseMasteryListResponse,
+)
+
 __all__ = [
     "CourseBase",
     "CourseCreate",
@@ -106,6 +112,9 @@ __all__ = [
     "AttemptAnswerResponse",
     "StartAttemptRequest",
     "AssessmentAttemptResponse",
+    "LearnerMasteryInitRequest",
+    "LearnerConceptMasteryResponse",
+    "LearnerCourseMasteryListResponse",
 ]
 
 

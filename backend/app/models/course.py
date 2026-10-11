@@ -69,6 +69,14 @@ class Course(Base):
         order_by="desc(Assessment.created_at)"
     )
 
+    # 1-to-many relationship with LearnerConceptMastery
+    learner_masteries = relationship(
+        "LearnerConceptMastery",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
     def __repr__(self):
         return f"<Course(id='{self.id}', title='{self.title}')>"
 
