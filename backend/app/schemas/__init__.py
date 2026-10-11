@@ -82,6 +82,17 @@ from app.schemas.practice import (
     PracticeConfigOptions,
 )
 
+from app.schemas.analytics import (
+    MasteryBreakdown,
+    AssessmentSummary,
+    TopicProgressSummary,
+    AttemptTrendPoint,
+    CourseAnalyticsOverview,
+    ConceptAnalyticsItem,
+    TopicAnalyticsDetail,
+    VelocityTrendsResponse,
+)
+
 __all__ = [
     "CourseBase",
     "CourseCreate",
@@ -141,6 +152,13 @@ __all__ = [
     "PracticeSessionResponse",
     "PracticeOptionItem",
     "PracticeConfigOptions",
+    "MasteryBreakdown",
+    "TopicProgressSummary",
+    "AttemptTrendPoint",
+    "CourseAnalyticsOverview",
+    "ConceptAnalyticsItem",
+    "TopicAnalyticsDetail",
+    "VelocityTrendsResponse",
 ]
 
 
