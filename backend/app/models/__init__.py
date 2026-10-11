@@ -4,6 +4,7 @@ from app.models.content_unit import ContentUnit
 from app.models.topic import Topic
 from app.models.concept import Concept, ConceptPrerequisite
 from app.models.assessment import Assessment, Question, AssessmentAttempt, AttemptAnswer
+from app.models.learner_mastery import LearnerConceptMastery
 
 __all__ = [
     "Course",
@@ -16,6 +17,5 @@ __all__ = [
     "Question",
     "AssessmentAttempt",
     "AttemptAnswer",
+    "LearnerConceptMastery",
 ]
-
-

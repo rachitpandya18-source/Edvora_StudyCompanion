@@ -100,6 +100,12 @@ class Question(Base):
     correct_answer = Column(Text, nullable=False)  # Encrypted/hidden from student prior to submission
     tolerance = Column(Float, nullable=True)  # Allowed delta for numerical questions
     explanation = Column(Text, nullable=True)  # Pedagogical explanation revealed post-submission
+    concept_id = Column(
+        String(36),
+        ForeignKey("concepts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -114,6 +120,7 @@ class Question(Base):
 
     # Relationships
     assessment = relationship("Assessment", back_populates="questions")
+    concept = relationship("Concept", backref="questions")
     attempt_answers = relationship(
         "AttemptAnswer",
         back_populates="question",
@@ -146,6 +153,7 @@ class AssessmentAttempt(Base):
     )
     student_id = Column(String(100), nullable=False, default="default_student", index=True)
     status = Column(String(32), nullable=False, default="in_progress")  # in_progress, submitted
+    bkt_processed = Column(Boolean, nullable=False, default=False)
     score = Column(Float, nullable=True)
     max_score = Column(Float, nullable=True)
     percentage = Column(Float, nullable=True)

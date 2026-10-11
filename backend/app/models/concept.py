@@ -112,6 +112,14 @@ class Concept(Base):
         overlaps="dependents,prerequisites"
     )
 
+    # 1-to-many relationship with LearnerConceptMastery
+    learner_masteries = relationship(
+        "LearnerConceptMastery",
+        back_populates="concept",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
     # Composite indexes
     __table_args__ = (
         Index("ix_concepts_topic_order", "topic_id", "order_index"),
