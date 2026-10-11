@@ -1,12 +1,20 @@
 """
-FastAPI route endpoints for Course-Grounded Tutor.
+FastAPI route endpoints for Course-Grounded Tutor and Multi-Turn Persistent Tutor Sessions.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.schemas.tutor import CourseTutorAskRequest, CourseTutorResponse
+from app.schemas.tutor_session import (
+    TutorThreadCreate,
+    TutorMessageCreate,
+    TutorThreadSummary,
+    TutorThreadDetail,
+    TutorMessageResponse,
+)
 from app.services.course_tutor_service import (
     answer_course_question,
     CourseNotFoundError,
@@ -14,12 +22,17 @@ from app.services.course_tutor_service import (
     SourceCourseMismatchError,
     TutorProviderError,
 )
+from app.services import tutor_session_service
 
 router = APIRouter(
     prefix="/courses",
     tags=["Course Tutor"]
 )
 
+
+# =====================================================================
+# Single-Turn Endpoint (Preserved exactly for backward compatibility)
+# =====================================================================
 
 @router.post(
     "/{course_id}/tutor/ask",
@@ -76,3 +89,127 @@ def ask_course_tutor(
             detail=str(err)
         )
 
+
+# =====================================================================
+# Multi-Turn Persistent Tutor Thread Endpoints (Milestone B10)
+# =====================================================================
+
+@router.post(
+    "/{course_id}/tutor/threads",
+    response_model=TutorThreadSummary,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new persistent conversation thread with the AI Tutor",
+)
+def create_tutor_thread(
+    course_id: str,
+    payload: TutorThreadCreate,
+    db: Session = Depends(get_db),
+):
+    """
+    Creates a new conversation thread scoped to the specified course and student.
+    """
+    return tutor_session_service.create_tutor_thread(
+        db=db,
+        course_id=course_id,
+        student_id=payload.student_id,
+        title=payload.title,
+    )
+
+
+@router.get(
+    "/{course_id}/tutor/threads",
+    response_model=List[TutorThreadSummary],
+    status_code=status.HTTP_200_OK,
+    summary="List all persistent conversation threads for a student in this course",
+)
+def list_tutor_threads(
+    course_id: str,
+    student_id: str = Query("default_student", description="Unique student identifier"),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns all conversation threads owned by the student in chronological order.
+    """
+    return tutor_session_service.list_tutor_threads(
+        db=db,
+        course_id=course_id,
+        student_id=student_id,
+    )
+
+
+@router.get(
+    "/{course_id}/tutor/threads/{thread_id}",
+    response_model=TutorThreadDetail,
+    status_code=status.HTTP_200_OK,
+    summary="Get full message history of a persistent conversation thread",
+)
+def get_tutor_thread(
+    course_id: str,
+    thread_id: str,
+    student_id: str = Query("default_student", description="Unique student identifier"),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns the thread metadata and full sequence of user and assistant messages with citations.
+    """
+    return tutor_session_service.get_tutor_thread(
+        db=db,
+        course_id=course_id,
+        thread_id=thread_id,
+        student_id=student_id,
+    )
+
+
+@router.delete(
+    "/{course_id}/tutor/threads/{thread_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Delete a persistent conversation thread and all its messages",
+)
+def delete_tutor_thread(
+    course_id: str,
+    thread_id: str,
+    student_id: str = Query("default_student", description="Unique student identifier"),
+    db: Session = Depends(get_db),
+):
+    """
+    Permanently deletes the thread and cascades deletion to all contained messages.
+    """
+    tutor_session_service.delete_tutor_thread(
+        db=db,
+        course_id=course_id,
+        thread_id=thread_id,
+        student_id=student_id,
+    )
+    return {
+        "message": f"Tutor thread '{thread_id}' deleted successfully.",
+        "thread_id": thread_id,
+        "course_id": course_id,
+    }
+
+
+@router.post(
+    "/{course_id}/tutor/threads/{thread_id}/messages",
+    response_model=TutorMessageResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Post a question to a thread and generate a grounded assistant response",
+)
+def post_thread_message(
+    course_id: str,
+    thread_id: str,
+    payload: TutorMessageCreate,
+    db: Session = Depends(get_db),
+):
+    """
+    Appends the student's question to the thread, performs contextual course retrieval
+    using recent conversation history, generates a grounded response with authentic citations,
+    persists both turns, and returns the assistant message.
+    """
+    return tutor_session_service.post_thread_message(
+        db=db,
+        course_id=course_id,
+        thread_id=thread_id,
+        question=payload.question,
+        student_id=payload.student_id,
+        source_id=payload.source_id,
+        top_k=payload.top_k,
+    )

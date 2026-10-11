@@ -77,6 +77,15 @@ class Course(Base):
         passive_deletes=True,
     )
 
+    # 1-to-many relationship with TutorThread, cascade delete all associated threads
+    tutor_threads = relationship(
+        "TutorThread",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="desc(TutorThread.updated_at)",
+    )
+
     def __repr__(self):
         return f"<Course(id='{self.id}', title='{self.title}')>"
 

@@ -5,6 +5,7 @@ from app.models.topic import Topic
 from app.models.concept import Concept, ConceptPrerequisite
 from app.models.assessment import Assessment, Question, AssessmentAttempt, AttemptAnswer
 from app.models.learner_mastery import LearnerConceptMastery
+from app.models.tutor_session import TutorThread, TutorMessage
 
 __all__ = [
     "Course",
@@ -18,4 +19,6 @@ __all__ = [
     "AssessmentAttempt",
     "AttemptAnswer",
     "LearnerConceptMastery",
+    "TutorThread",
+    "TutorMessage",
 ]

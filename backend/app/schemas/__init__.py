@@ -93,6 +93,14 @@ from app.schemas.analytics import (
     VelocityTrendsResponse,
 )
 
+from app.schemas.tutor_session import (
+    TutorThreadCreate,
+    TutorMessageCreate,
+    TutorMessageResponse,
+    TutorThreadSummary,
+    TutorThreadDetail,
+)
+
 __all__ = [
     "CourseBase",
     "CourseCreate",
@@ -159,6 +167,11 @@ __all__ = [
     "ConceptAnalyticsItem",
     "TopicAnalyticsDetail",
     "VelocityTrendsResponse",
+    "TutorThreadCreate",
+    "TutorMessageCreate",
+    "TutorMessageResponse",
+    "TutorThreadSummary",
+    "TutorThreadDetail",
 ]
 
 
