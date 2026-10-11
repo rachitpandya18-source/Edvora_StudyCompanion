@@ -101,6 +101,15 @@ from app.schemas.tutor_session import (
     TutorThreadDetail,
 )
 
+from app.schemas.curriculum_generator import (
+    CurriculumGenerateRequest,
+    CurriculumGenerateResponse,
+    CurriculumStatusResponse,
+    GeneratedTopicItem,
+    GeneratedConceptItem,
+    GeneratedPrerequisiteItem,
+)
+
 __all__ = [
     "CourseBase",
     "CourseCreate",
@@ -172,6 +181,12 @@ __all__ = [
     "TutorMessageResponse",
     "TutorThreadSummary",
     "TutorThreadDetail",
+    "CurriculumGenerateRequest",
+    "CurriculumGenerateResponse",
+    "CurriculumStatusResponse",
+    "GeneratedTopicItem",
+    "GeneratedConceptItem",
+    "GeneratedPrerequisiteItem",
 ]
 
 
