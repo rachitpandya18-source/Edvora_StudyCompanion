@@ -10,6 +10,7 @@ from app.api.routes.curriculum import router as curriculum_router
 from app.api.routes.course_tutor import router as course_tutor_router
 from app.api.routes.assessment import router as assessment_router
 from app.api.routes.learner_mastery import router as learner_mastery_router
+from app.api.routes.study_planner import router as study_planner_router
 
 
 app = FastAPI(
@@ -38,6 +39,7 @@ app.include_router(curriculum_router)
 app.include_router(course_tutor_router)
 app.include_router(assessment_router)
 app.include_router(learner_mastery_router)
+app.include_router(study_planner_router)
 app.include_router(tutor_router)
 app.include_router(documents_router)
 app.include_router(quiz_router)
