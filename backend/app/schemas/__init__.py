@@ -66,6 +66,14 @@ from app.schemas.learner_mastery import (
     LearnerCourseMasteryListResponse,
 )
 
+from app.schemas.study_planner import (
+    StudyActionStep,
+    StudyNextResponse,
+    PrioritizedConceptItem,
+    StudyPlanSummary,
+    StudyPlanResponse,
+)
+
 __all__ = [
     "CourseBase",
     "CourseCreate",
@@ -115,6 +123,11 @@ __all__ = [
     "LearnerMasteryInitRequest",
     "LearnerConceptMasteryResponse",
     "LearnerCourseMasteryListResponse",
+    "StudyActionStep",
+    "StudyNextResponse",
+    "PrioritizedConceptItem",
+    "StudyPlanSummary",
+    "StudyPlanResponse",
 ]
 
 

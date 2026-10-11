@@ -9,8 +9,13 @@ load_dotenv()
 
 # Database URL from environment with PostgreSQL as standard target,
 # falling back gracefully to SQLite for local development or testing if no live Postgres is present.
-DEFAULT_DB_URL = "postgresql://postgres:postgres@localhost:5432/edvora"
+# Note: In SQLAlchemy 2.x, 'postgresql://' defaults to psycopg (v3). Since the project specifies
+# psycopg2-binary, we default to 'postgresql+psycopg2://' and normalize 'postgresql://' accordingly.
+DEFAULT_DB_URL = "postgresql+psycopg2://postgres:postgres@localhost:5432/edvora"
 DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DB_URL)
+
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 # Configure engine arguments
 connect_args = {}
