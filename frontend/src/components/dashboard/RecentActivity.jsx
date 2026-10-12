@@ -7,7 +7,12 @@ export default function RecentActivity({ activities = [] }) {
       </div>
 
       <div className="space-y-3">
-        {activities.map((activity) => {
+        {activities.length === 0 ? (
+          <div className="p-4 rounded-xl bg-[#121215] border border-[#222227] text-center text-xs text-[#71717a]">
+            No recent activity recorded yet. Start studying or practicing to build your history.
+          </div>
+        ) : (
+          activities.map((activity) => {
           const isStrong = activity.variant === 'strong';
           const isAccent = activity.variant === 'accent';
 
@@ -42,7 +47,7 @@ export default function RecentActivity({ activities = [] }) {
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
     </div>
   );

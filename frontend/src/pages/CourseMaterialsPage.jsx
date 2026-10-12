@@ -5,7 +5,6 @@ import AddMaterialModal from '../components/materials/AddMaterialModal';
 import MaterialPreviewModal from '../components/materials/MaterialPreviewModal';
 import coursesApi from '../api/coursesApi';
 import curriculumApi from '../api/curriculumApi';
-import { defaultCourseMaterials } from '../data/mockMaterialsData';
 
 /**
  * CourseMaterialsPage
@@ -18,7 +17,7 @@ export default function CourseMaterialsPage({
   courseName = 'Data Structures & Algorithms',
   onCurriculumGenerated,
 }) {
-  const [materials, setMaterials] = useState(defaultCourseMaterials);
+  const [materials, setMaterials] = useState([]);
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -35,7 +34,7 @@ export default function CourseMaterialsPage({
     if (!courseId) return;
     try {
       const sources = await coursesApi.listSources(courseId);
-      if (Array.isArray(sources) && sources.length > 0) {
+      if (Array.isArray(sources)) {
         const mapped = sources.map((s) => ({
           id: s.id,
           type: s.source_type || 'pdf',
@@ -52,42 +51,13 @@ export default function CourseMaterialsPage({
         setMaterials(mapped);
       }
     } catch {
-      // Fallback to sample materials if course is new or offline
+      setMaterials([]);
     }
   }, [courseId]);
 
   useEffect(() => {
-    let ignore = false;
-    async function init() {
-      if (!courseId) return;
-      try {
-        const sources = await coursesApi.listSources(courseId);
-        if (ignore) return;
-        if (Array.isArray(sources) && sources.length > 0) {
-          const mapped = sources.map((s) => ({
-            id: s.id,
-            type: s.source_type || 'pdf',
-            filename: s.filename,
-            metadata: `${(s.source_type || 'PDF').toUpperCase()} · Indexed in course`,
-            status: s.processing_status === 'completed' ? 'ready' : (s.processing_status || 'ready'),
-            addedAt: s.created_at ? new Date(s.created_at).toLocaleDateString() : 'Recently',
-            actionLabel: 'Open Material',
-            previewContent: {
-              title: s.filename,
-              excerpt: `Indexed course material file (${s.filename}). Extracted and ready for tutoring, RAG citations, and practice question generation.`,
-            },
-          }));
-          setMaterials(mapped);
-        }
-      } catch {
-        // Fallback to sample materials
-      }
-    }
-    init();
-    return () => {
-      ignore = true;
-    };
-  }, [courseId]);
+    loadSources();
+  }, [loadSources]);
 
 
   // Dynamic summary counts calculated directly from materials state

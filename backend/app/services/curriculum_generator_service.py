@@ -40,9 +40,14 @@ MAX_UNITS_PER_SOURCE = 12
 # Course & Material Verification
 # =====================================================================
 
-def verify_course_exists(db: Session, course_id: str) -> Course:
+def verify_course_exists(db: Session, course_id: str, student_id: Optional[str] = None) -> Course:
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Course '{course_id}' not found.",
+        )
+    if student_id and course.owner_id is not None and course.owner_id != student_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Course '{course_id}' not found.",
@@ -415,6 +420,7 @@ def generate_curriculum(
     course_id: str,
     request: CurriculumGenerateRequest,
     llm_generator: Optional[Callable[[str], str]] = None,
+    student_id: Optional[str] = None,
 ) -> CurriculumGenerateResponse:
     """
     Generates a validated curriculum graph for a course.
@@ -424,7 +430,7 @@ def generate_curriculum(
                  and commits the new Topics, Concepts, and Prerequisite edges.
     """
     # 1. Validate course existence
-    course = verify_course_exists(db, course_id)
+    course = verify_course_exists(db, course_id, student_id=student_id)
 
     # 2. Validate Mode
     mode = request.mode.strip().lower()
@@ -734,11 +740,15 @@ def generate_curriculum(
 # Curriculum Status Endpoint
 # =====================================================================
 
-def get_curriculum_status(db: Session, course_id: str) -> CurriculumStatusResponse:
+def get_curriculum_status(
+    db: Session,
+    course_id: str,
+    student_id: Optional[str] = None,
+) -> CurriculumStatusResponse:
     """
     Computes curriculum status metrics dynamically for a course.
     """
-    verify_course_exists(db, course_id)
+    verify_course_exists(db, course_id, student_id=student_id)
 
     topic_count = db.query(Topic).filter(Topic.course_id == course_id).count()
     concept_count = db.query(Concept).filter(Concept.course_id == course_id).count()

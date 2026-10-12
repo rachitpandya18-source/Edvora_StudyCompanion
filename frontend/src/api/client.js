@@ -3,7 +3,10 @@
  * Uses standard native fetch, attaches auth tokens, handles errors consistently.
  */
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/+$/, '');
+const API_BASE_URL = (
+  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) ||
+  'http://localhost:8000'
+).replace(/\/+$/, '');
 const TOKEN_KEY = 'edvora_auth_token';
 const USER_KEY = 'edvora_user';
 

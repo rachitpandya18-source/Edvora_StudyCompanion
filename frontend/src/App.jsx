@@ -23,31 +23,27 @@ function App() {
     try {
       const data = await coursesApi.listCourses();
       const items = data?.items || [];
-      if (items.length > 0) {
-        const formatted = items.map((c) => ({
-          id: c.id,
-          code: c.title.slice(0, 6).toUpperCase(),
-          title: c.title,
-          category: c.description || 'Academic Study Course',
-          mastery: 0,
-          statusText: 'Active',
-          statusVariant: 'developing',
-          statusColor: '#a78bfa',
-          currentlyLearning: c.sources?.[0]?.filename || 'Course Overview',
-          lastStudied: 'Recently',
-          materials: {
-            textbooks: c.sources?.filter((s) => s.source_type === 'pdf').length || 0,
-            slides: c.sources?.filter((s) => ['ppt', 'pptx'].includes(s.source_type)).length || 0,
-            lectures: c.sources?.filter((s) => ['video', 'mp4'].includes(s.source_type)).length || 0,
-          },
-          primaryAction: 'Continue',
-        }));
-        setCourses(formatted);
-      } else {
-        setCourses(mockCourses);
-      }
+      const formatted = items.map((c) => ({
+        id: c.id,
+        code: c.title.slice(0, 6).toUpperCase(),
+        title: c.title,
+        category: c.description || 'Academic Study Course',
+        mastery: 0,
+        statusText: 'Active',
+        statusVariant: 'developing',
+        statusColor: '#a78bfa',
+        currentlyLearning: c.sources?.[0]?.filename || 'Course Overview',
+        lastStudied: 'Recently',
+        materials: {
+          textbooks: c.sources?.filter((s) => s.source_type === 'pdf').length || 0,
+          slides: c.sources?.filter((s) => ['ppt', 'pptx'].includes(s.source_type)).length || 0,
+          lectures: c.sources?.filter((s) => ['video', 'mp4'].includes(s.source_type)).length || 0,
+        },
+        primaryAction: 'Continue',
+      }));
+      setCourses(formatted);
     } catch {
-      setCourses(mockCourses);
+      setCourses([]);
     } finally {
       setIsLoadingCourses(false);
     }

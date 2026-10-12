@@ -12,7 +12,13 @@ export default function CourseMasteryList({ topics = [] }) {
 
       {/* Topic Rows */}
       <div className="space-y-3.5">
-        {topics.map((topic) => {
+        {topics.length === 0 ? (
+          <div className="p-6 text-center rounded-lg bg-[#18181c] border border-[#222227] text-xs text-[#a1a1aa] space-y-1">
+            <p className="text-white font-medium">No curriculum topics extracted yet</p>
+            <p>Upload course materials and generate the curriculum to see topic-level mastery.</p>
+          </div>
+        ) : (
+          topics.map((topic) => {
           const isAttention = topic.variant === 'attention';
           const isDeveloping = topic.variant === 'developing';
 
@@ -68,7 +74,7 @@ export default function CourseMasteryList({ topics = [] }) {
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
     </section>
   );

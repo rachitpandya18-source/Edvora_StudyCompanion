@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.api.deps import get_current_student_id, verify_course_owner
+from app.models.course import Course
 from app.schemas.curriculum import (
     TopicCreate,
     TopicUpdate,
@@ -493,6 +495,8 @@ def get_course_curriculum(
 def generate_curriculum(
     course_id: str,
     payload: CurriculumGenerateRequest,
+    course: Course = Depends(verify_course_owner),
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -505,6 +509,7 @@ def generate_curriculum(
         db=db,
         course_id=course_id,
         request=payload,
+        student_id=student_id,
     )
 
 
@@ -516,6 +521,8 @@ def generate_curriculum(
 )
 def get_curriculum_status(
     course_id: str,
+    course: Course = Depends(verify_course_owner),
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -525,6 +532,7 @@ def get_curriculum_status(
     return curriculum_generator_service.get_curriculum_status(
         db=db,
         course_id=course_id,
+        student_id=student_id,
     )
 
 

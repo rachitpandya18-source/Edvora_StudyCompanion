@@ -32,9 +32,14 @@ SUPPORTED_QUESTION_TYPES = {"mcq", "true_false", "short_answer"}
 DEFAULT_QUESTION_COUNT = 5
 
 
-def _verify_course_exists(db: Session, course_id: str) -> Course:
+def _verify_course_exists(db: Session, course_id: str, student_id: Optional[str] = None) -> Course:
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Course '{course_id}' not found."
+        )
+    if student_id and course.owner_id is not None and course.owner_id != student_id:
         raise HTTPException(
             status_code=404,
             detail=f"Course '{course_id}' not found."
@@ -42,12 +47,12 @@ def _verify_course_exists(db: Session, course_id: str) -> Course:
     return course
 
 
-def get_practice_options(db: Session, course_id: str) -> PracticeConfigOptions:
+def get_practice_options(db: Session, course_id: str, student_id: Optional[str] = None) -> PracticeConfigOptions:
     """
     Returns available course topics with concept counts, supported question types,
     difficulties, and recommended concept based on study planner analysis.
     """
-    _verify_course_exists(db, course_id)
+    _verify_course_exists(db, course_id, student_id=student_id)
 
     topics = (
         db.query(Topic)
@@ -298,7 +303,7 @@ def generate_practice_session(
     Assembles a course-grounded practice session, persists it as an Assessment,
     and initiates an active AssessmentAttempt for the student.
     """
-    course = _verify_course_exists(db, course_id)
+    course = _verify_course_exists(db, course_id, student_id=request.student_id)
 
     # 1. Validate Mode
     mode = request.mode.strip().lower()

@@ -118,6 +118,7 @@ def answer_course_question(
     source_id: Optional[str] = None,
     top_k: int = 3,
     llm_generator: Optional[Callable[[str], str]] = None,
+    student_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Answer a question grounded in the course's persistent content units.
@@ -135,9 +136,11 @@ def answer_course_question(
     if not clean_question:
         raise ValueError("Question cannot be empty.")
 
-    # 1. Verify course exists
+    # 1. Verify course exists and ownership
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
+        raise CourseNotFoundError(f"Course '{course_id}' not found.")
+    if student_id and course.owner_id is not None and course.owner_id != student_id:
         raise CourseNotFoundError(f"Course '{course_id}' not found.")
 
     # 2. Verify source filter if provided

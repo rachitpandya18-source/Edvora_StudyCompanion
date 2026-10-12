@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch } from './client.js';
 
 export async function listCourses(skip = 0, limit = 100) {
   return await apiFetch(`/courses?skip=${skip}&limit=${limit}`, {

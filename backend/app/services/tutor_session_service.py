@@ -39,9 +39,14 @@ logger = logging.getLogger(__name__)
 CONVERSATIONAL_WINDOW_LIMIT = 6
 
 
-def verify_course_exists(db: Session, course_id: str) -> Course:
+def verify_course_exists(db: Session, course_id: str, student_id: Optional[str] = None) -> Course:
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Course '{course_id}' not found.",
+        )
+    if student_id and course.owner_id is not None and course.owner_id != student_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Course '{course_id}' not found.",
@@ -55,7 +60,7 @@ def verify_thread_access(
     thread_id: str,
     student_id: str = "default_student",
 ) -> TutorThread:
-    verify_course_exists(db, course_id)
+    verify_course_exists(db, course_id, student_id=student_id)
     thread = db.query(TutorThread).filter(TutorThread.id == thread_id).first()
     if not thread:
         raise HTTPException(
@@ -93,7 +98,7 @@ def create_tutor_thread(
     student_id: str = "default_student",
     title: Optional[str] = None,
 ) -> TutorThreadSummary:
-    verify_course_exists(db, course_id)
+    verify_course_exists(db, course_id, student_id=student_id)
     effective_title = (title.strip() if title and title.strip() else derive_thread_title(None))
 
     thread = TutorThread(
@@ -121,7 +126,7 @@ def list_tutor_threads(
     course_id: str,
     student_id: str = "default_student",
 ) -> List[TutorThreadSummary]:
-    verify_course_exists(db, course_id)
+    verify_course_exists(db, course_id, student_id=student_id)
     threads = (
         db.query(TutorThread)
         .filter(

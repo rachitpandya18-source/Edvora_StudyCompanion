@@ -16,6 +16,7 @@ export default function PracticeSessionModal({
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [evaluationResult, setEvaluationResult] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
 
   if (!isOpen || !sessionConfig) return null;
 
@@ -30,7 +31,6 @@ export default function PracticeSessionModal({
     type = 'Multiple Choice',
   } = sessionConfig;
 
-  // Fallback demo question if questions array is empty
   const defaultQuestion = {
     id: 'demo-q1',
     prompt:
@@ -49,16 +49,34 @@ export default function PracticeSessionModal({
       'An "inner elbow" (Left-Right) imbalance occurs when the root has BF +2 and its left child has BF -1. A left rotation on the child straightens the elbow, and a subsequent right rotation on the root restores balance.',
   };
 
-  const activeQuestions = questions.length > 0 ? questions : [defaultQuestion];
+  const rawQuestions = questions.length > 0 ? questions : [defaultQuestion];
+  const activeQuestions = rawQuestions.map((q) => {
+    let opts = [];
+    if (q.options && Array.isArray(q.options)) {
+      opts = q.options.map((opt, i) =>
+        typeof opt === 'string' ? { id: opt, text: opt } : { id: opt.id || opt.text || `opt-${i}`, text: opt.text || opt.id || String(opt), is_correct: opt.is_correct }
+      );
+    } else if (q.options_json && Array.isArray(q.options_json)) {
+      opts = q.options_json.map((opt) => ({
+        id: opt,
+        text: opt,
+      }));
+    }
+    return {
+      ...q,
+      options: opts,
+    };
+  });
+
   const currentQ = activeQuestions[currentIdx] || activeQuestions[0];
   const questionCount = activeQuestions.length;
   const currentAnswer = selectedAnswers[currentQ.id];
 
-  const handleSelectOption = (optId) => {
+  const handleSelectOption = (optValue) => {
     if (!evaluationResult) {
       setSelectedAnswers((prev) => ({
         ...prev,
-        [currentQ.id]: optId,
+        [currentQ.id]: optValue,
       }));
     }
   };
@@ -67,21 +85,22 @@ export default function PracticeSessionModal({
     if (!currentAnswer && !Object.keys(selectedAnswers).length) return;
 
     setIsSubmitting(true);
+    setSubmitError(null);
 
     if (courseId && assessmentId && attemptId) {
       try {
-        const responses = activeQuestions
-          .filter((q) => selectedAnswers[q.id])
+        const answers = activeQuestions
+          .filter((q) => selectedAnswers[q.id] !== undefined)
           .map((q) => ({
             question_id: q.id,
-            selected_option_id: selectedAnswers[q.id],
+            student_answer: String(selectedAnswers[q.id]),
           }));
 
         const result = await practiceApi.submitAttempt(
           courseId,
           assessmentId,
           attemptId,
-          responses
+          answers
         );
 
         setEvaluationResult(result);
@@ -89,20 +108,21 @@ export default function PracticeSessionModal({
         onAttemptCompleted?.(result);
         return;
       } catch (err) {
-        console.warn('Practice submission error, using simulated evaluation:', err);
+        console.error('Practice submission error:', err);
+        setSubmitError(err.message || 'Failed to submit practice attempt. Please try again.');
+        setIsSubmitting(false);
+        return;
       }
     }
 
-    // Simulated evaluation fallback
-    setTimeout(() => {
-      setEvaluationResult({
-        score: 1.0,
-        earned_points: 10,
-        total_points: 10,
-        feedback: 'Excellent work! Bayesian Knowledge Tracing updated your concept mastery.',
-      });
-      setIsSubmitting(false);
-    }, 400);
+    // If no courseId/attemptId (e.g. previewing demo), truthful completion message
+    setEvaluationResult({
+      score: 1.0,
+      earned_points: 1,
+      total_points: 1,
+      feedback: 'Demo preview completed. Connect a live course to record Bayesian Knowledge Tracing mastery updates.',
+    });
+    setIsSubmitting(false);
   };
 
   return (
@@ -198,6 +218,23 @@ export default function PracticeSessionModal({
                 );
               })}
             </div>
+
+            {/* Error banner on failed submission */}
+            {submitError && (
+              <div className="p-3.5 rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/30 text-xs sm:text-sm text-[#f87171] flex items-center justify-between gap-2 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base shrink-0">error</span>
+                  <span>{submitError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSubmitAttempt}
+                  className="px-2.5 py-1 rounded bg-[#ef4444]/20 hover:bg-[#ef4444]/30 text-white font-medium text-xs cursor-pointer shrink-0"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
 
             {/* Feedback on evaluation */}
             {evaluationResult && (

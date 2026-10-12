@@ -20,6 +20,7 @@ class CourseUpdate(BaseModel):
 
 class CourseResponse(CourseBase):
     id: str
+    owner_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     sources: List[SourceResponse] = Field(default_factory=list)

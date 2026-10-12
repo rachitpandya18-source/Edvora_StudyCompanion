@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch } from './client.js';
 
 export async function getPracticeOptions(courseId) {
   return await apiFetch(`/courses/${courseId}/practice/options`, {
@@ -19,10 +19,10 @@ export async function getAssessment(courseId, assessmentId) {
   });
 }
 
-export async function submitAttempt(courseId, assessmentId, attemptId, responses = []) {
+export async function submitAttempt(courseId, assessmentId, attemptId, answers = []) {
   return await apiFetch(`/courses/${courseId}/assessments/${assessmentId}/attempts/${attemptId}/submit`, {
     method: 'POST',
-    body: { responses },
+    body: { answers },
   });
 }
 

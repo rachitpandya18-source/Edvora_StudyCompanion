@@ -45,6 +45,7 @@ router = APIRouter(
 def ask_course_tutor(
     course_id: str,
     request: CourseTutorAskRequest,
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -63,6 +64,7 @@ def ask_course_tutor(
             question=request.question,
             source_id=request.source_id,
             top_k=request.top_k,
+            student_id=student_id,
         )
         return response_data
     except CourseNotFoundError as err:

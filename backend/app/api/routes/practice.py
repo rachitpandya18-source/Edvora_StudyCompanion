@@ -58,6 +58,7 @@ def generate_practice(
 )
 def get_practice_options(
     course_id: str,
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -67,5 +68,6 @@ def get_practice_options(
     return practice_service.get_practice_options(
         db=db,
         course_id=course_id,
+        student_id=student_id,
     )
 
