@@ -4,8 +4,10 @@ from pathlib import Path
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 
 from app.db.database import get_db
+from app.api.deps import get_current_student_id, verify_course_owner
 from app.models.course import Course
 from app.models.source import Source
 from app.schemas.course import (
@@ -40,11 +42,13 @@ router = APIRouter(
 )
 def create_course(
     course_in: CourseCreate,
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db)
 ):
     course = Course(
         title=course_in.title,
-        description=course_in.description
+        description=course_in.description,
+        owner_id=student_id,
     )
     db.add(course)
     db.commit()
@@ -60,9 +64,14 @@ def create_course(
 def list_courses(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db)
 ):
-    query = db.query(Course).options(joinedload(Course.sources))
+    query = (
+        db.query(Course)
+        .options(joinedload(Course.sources))
+        .filter(or_(Course.owner_id == student_id, Course.owner_id.is_(None)))
+    )
     total = query.count()
     courses = query.offset(skip).limit(limit).all()
     return CourseListResponse(items=courses, total=total)
@@ -74,18 +83,9 @@ def list_courses(
     summary="Get a course by ID"
 )
 def get_course(
-    course_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
-    course = db.query(Course).options(
-        joinedload(Course.sources)
-    ).filter(Course.id == course_id).first()
-
-    if not course:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Course with ID '{course_id}' not found."
-        )
     return course
 
 
@@ -95,20 +95,10 @@ def get_course(
     summary="Update a course by ID"
 )
 def update_course(
-    course_id: str,
     course_in: CourseUpdate,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
-    course = db.query(Course).options(
-        joinedload(Course.sources)
-    ).filter(Course.id == course_id).first()
-
-    if not course:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Course with ID '{course_id}' not found."
-        )
-
     if course_in.title is not None:
         course.title = course_in.title
     if course_in.description is not None:
@@ -125,17 +115,10 @@ def update_course(
     summary="Delete a course and all associated sources"
 )
 def delete_course(
-    course_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
-    course = db.query(Course).filter(Course.id == course_id).first()
-
-    if not course:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Course with ID '{course_id}' not found."
-        )
-
+    course_id = course.id
     db.delete(course)
     db.commit()
     return {
@@ -157,16 +140,9 @@ def delete_course(
 def create_course_source(
     course_id: str,
     source_in: SourceCreate,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
-    # Verify course exists
-    course = db.query(Course).filter(Course.id == course_id).first()
-    if not course:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Course with ID '{course_id}' not found."
-        )
-
     source = Source(
         course_id=course_id,
         filename=source_in.filename,
@@ -187,15 +163,9 @@ def create_course_source(
 )
 def list_course_sources(
     course_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
-    course = db.query(Course).filter(Course.id == course_id).first()
-    if not course:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Course with ID '{course_id}' not found."
-        )
-
     sources = db.query(Source).filter(Source.course_id == course_id).all()
     return sources
 
@@ -208,6 +178,7 @@ def list_course_sources(
 def get_course_source(
     course_id: str,
     source_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     source = db.query(Source).filter(
@@ -231,6 +202,7 @@ def get_course_source(
 def delete_course_source(
     course_id: str,
     source_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     source = db.query(Source).filter(
@@ -269,17 +241,10 @@ UPLOAD_BASE_DIR = Path(os.getenv("UPLOAD_DIR", "data/uploads"))
 def upload_course_material(
     course_id: str,
     file: UploadFile = File(...),
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
-    # 1. Verify course exists
-    course = db.query(Course).filter(Course.id == course_id).first()
-    if not course:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Course with ID '{course_id}' not found."
-        )
-
-    # 2. Validate PDF format
+    # 1. Validate PDF format
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

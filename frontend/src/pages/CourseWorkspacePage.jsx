@@ -32,7 +32,10 @@ export default function CourseWorkspacePage({
   const [activeSection, setActiveSection] = useState(initialSection);
   const [liveOverview, setLiveOverview] = useState(null);
   const [liveStudyNext, setLiveStudyNext] = useState(null);
+  const [liveTopics, setLiveTopics] = useState([]);
   const [hasCurriculum, setHasCurriculum] = useState(true);
+  const [isGeneratingCurriculum, setIsGeneratingCurriculum] = useState(false);
+  const [curriculumMessage, setCurriculumMessage] = useState(null);
 
   // Fetch real curriculum, study-next recommendation, and analytics overview
   useEffect(() => {
@@ -43,12 +46,23 @@ export default function CourseWorkspacePage({
       .then((curr) => {
         if (curr?.topics && curr.topics.length > 0) {
           setHasCurriculum(true);
+          const mapped = curr.topics.map((t, idx) => ({
+            id: t.id || `topic-${idx}`,
+            name: t.title,
+            percentage: 0,
+            status: 'Developing',
+            variant: 'developing',
+            isStudyNext: idx === 0,
+          }));
+          setLiveTopics(mapped);
         } else {
           setHasCurriculum(false);
+          setLiveTopics([]);
         }
       })
       .catch(() => {
         setHasCurriculum(false);
+        setLiveTopics([]);
       });
 
     // Fetch top study recommendation
@@ -72,17 +86,65 @@ export default function CourseWorkspacePage({
       .then((ov) => {
         if (ov) {
           setLiveOverview(ov);
+          if (ov.topic_summaries && ov.topic_summaries.length > 0) {
+            const mapped = ov.topic_summaries.map((ts, idx) => ({
+              id: ts.topic_id || `topic-${idx}`,
+              name: ts.title,
+              percentage: Math.round(ts.average_mastery * 100),
+              status: ts.status === 'mastered' ? 'Mastered' : ts.status === 'proficient' ? 'Proficient' : 'Developing',
+              variant: ts.status === 'mastered' ? 'strong' : ts.status === 'proficient' ? 'developing' : 'attention',
+              isStudyNext: idx === 0,
+            }));
+            setLiveTopics(mapped);
+          }
         }
       })
       .catch(() => {});
   }, [courseId]);
 
+  const handleTriggerGenerateCurriculum = async () => {
+    if (!courseId || isGeneratingCurriculum) return;
+    setIsGeneratingCurriculum(true);
+    setCurriculumMessage('Generating curriculum from course materials...');
+    try {
+      await curriculumApi.generateCurriculum(courseId);
+      setCurriculumMessage('Curriculum generated successfully!');
+      setHasCurriculum(true);
+      const curr = await curriculumApi.getCurriculum(courseId);
+      if (curr?.topics) {
+        setLiveTopics(
+          curr.topics.map((t, idx) => ({
+            id: t.id || `topic-${idx}`,
+            name: t.title,
+            percentage: 0,
+            status: 'Developing',
+            variant: 'developing',
+            isStudyNext: idx === 0,
+          }))
+        );
+      }
+    } catch (err) {
+      setCurriculumMessage(err.message || 'Failed to generate curriculum. Ensure course materials are uploaded.');
+    } finally {
+      setIsGeneratingCurriculum(false);
+      setTimeout(() => setCurriculumMessage(null), 4000);
+    }
+  };
+
   // Merge default data with real backend attributes
   const courseData = {
     ...defaultCourseOverviewData,
     courseName: courseName || defaultCourseOverviewData.courseName,
-    mastery: liveOverview ? Math.round(liveOverview.overall_mastery * 100) : defaultCourseOverviewData.mastery,
-    studyNext: liveStudyNext || defaultCourseOverviewData.studyNext,
+    topics: liveTopics,
+    mastery: liveOverview ? Math.round(liveOverview.overall_mastery * 100) : 0,
+    studyNext: liveStudyNext || {
+      topic: 'No Active Recommendation',
+      headline: 'Upload materials and complete a study session to unlock recommendations.',
+      readiness: 'Developing',
+      actionText: 'View Materials',
+      reason: 'No prerequisite mastery traced yet.',
+      estimatedMinutes: 5,
+    },
   };
 
   const handleGlobalNav = (navId, extraData) => {
@@ -112,14 +174,32 @@ export default function CourseWorkspacePage({
                   <p className="text-xs text-[#a1a1aa]">
                     Upload course lecture notes or textbooks to automatically extract topics, concepts, and knowledge graph prerequisites.
                   </p>
+                  {curriculumMessage && (
+                    <p className="text-xs text-[#34d399] font-medium pt-1 animate-pulse">
+                      {curriculumMessage}
+                    </p>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveSection('materials')}
-                  className="px-4 py-2 rounded-lg bg-[#a78bfa] text-black font-semibold text-xs hover:bg-[#c4b5fd] transition-colors shrink-0 cursor-pointer"
-                >
-                  Upload Materials
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    disabled={isGeneratingCurriculum}
+                    onClick={handleTriggerGenerateCurriculum}
+                    className="px-4 py-2 rounded-lg bg-[#a78bfa] text-black font-semibold text-xs hover:bg-[#c4b5fd] transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      {isGeneratingCurriculum ? 'sync' : 'auto_awesome'}
+                    </span>
+                    <span>{isGeneratingCurriculum ? 'Generating...' : 'Generate Curriculum'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSection('materials')}
+                    className="px-3 py-2 rounded-lg bg-[#27272a] text-white font-medium text-xs hover:bg-[#3f3f46] transition-colors cursor-pointer"
+                  >
+                    View Materials
+                  </button>
+                </div>
               </div>
             )}
 

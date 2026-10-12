@@ -3,13 +3,29 @@ export default function StudyNextCard({
   onStart,
   onViewCourse,
 }) {
+  if (!studyNext || !studyNext.topic) {
+    return (
+      <div className="p-6 rounded-2xl bg-[#121215] border border-[#222227] relative overflow-hidden shadow-lg space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono font-medium tracking-wider text-[#a1a1aa] uppercase bg-[#18181c] px-2 py-0.5 rounded">
+            Study next
+          </span>
+        </div>
+        <h2 className="text-lg font-semibold text-white tracking-tight">No Active Recommendations</h2>
+        <p className="text-xs text-[#a1a1aa] leading-relaxed">
+          Create or select a course with indexed materials and generated curriculum to receive personalized study recommendations.
+        </p>
+      </div>
+    );
+  }
+
   const {
     courseName,
     topic,
     mastery,
     status,
     rationale,
-    recommendedActions,
+    recommendedActions = [],
   } = studyNext;
 
   return (

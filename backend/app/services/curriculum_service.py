@@ -18,9 +18,11 @@ from app.models.concept import Concept, ConceptPrerequisite
 # Course Verification Helper
 # =====================================================================
 
-def verify_course_exists(db: Session, course_id: str) -> Course:
+def verify_course_exists(db: Session, course_id: str, student_id: Optional[str] = None) -> Course:
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
+        raise ValueError(f"Course '{course_id}' not found.")
+    if student_id and course.owner_id is not None and course.owner_id != student_id:
         raise ValueError(f"Course '{course_id}' not found.")
     return course
 

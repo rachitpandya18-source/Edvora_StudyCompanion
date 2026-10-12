@@ -1,30 +1,80 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import QuickStartCard from '../components/dashboard/QuickStartCard';
 import CourseCard from '../components/dashboard/CourseCard';
 import StudyNextCard from '../components/dashboard/StudyNextCard';
 import RecentActivity from '../components/dashboard/RecentActivity';
 import LearningSnapshot from '../components/dashboard/LearningSnapshot';
+import curriculumApi from '../api/curriculumApi';
+import analyticsApi from '../api/analyticsApi';
 import {
   mockStudentProfile,
   mockQuickStartActions,
-  mockCourses,
-  mockStudyNext,
-  mockRecentActivity,
-  mockOverallSnapshot,
 } from '../data/mockDashboardData';
 
 export default function DashboardPage({
   user = mockStudentProfile,
-  courses = mockCourses,
+  courses = [],
   onNavigateToCourse,
   onEnterWorkspace,
   onCreateCourse,
 }) {
-  const [studyNext] = useState(mockStudyNext);
-  const [activities] = useState(mockRecentActivity);
-  const [snapshot] = useState(mockOverallSnapshot);
+  const [studyNext, setStudyNext] = useState(null);
+  const activities = [];
+  const [snapshot, setSnapshot] = useState({
+    strongCount: 0,
+    developingCount: 0,
+    attentionCount: 0,
+  });
   const [notification, setNotification] = useState(null);
+
+  useEffect(() => {
+    if (!courses || courses.length === 0) return;
+
+    const firstCourseId = courses[0].id;
+
+    // Fetch live study-next recommendation from curriculum API
+    curriculumApi.getStudyNext(firstCourseId)
+      .then((rec) => {
+        if (rec) {
+          setStudyNext({
+            courseName: courses[0].title,
+            topic: rec.concept_title || rec.concept_id,
+            mastery: 0,
+            status: 'Recommended',
+            rationale: rec.reason || `Prioritized based on prerequisite graph depth (${rec.prerequisite_depth}).`,
+            recommendedActions: [
+              {
+                id: 'act-1',
+                step: '1',
+                title: 'Review Conceptual Summary with Course Tutor',
+                durationOrPage: '5 mins',
+              },
+              {
+                id: 'act-2',
+                step: '2',
+                title: 'Complete Adaptive Calibration Practice',
+                durationOrPage: '5 questions',
+              },
+            ],
+          });
+        }
+      })
+      .catch(() => {});
+
+    // Fetch overview analytics
+    analyticsApi.getOverview(firstCourseId)
+      .then((ov) => {
+        if (ov?.mastery_distribution) {
+          setSnapshot({
+            strongCount: ov.mastery_distribution.mastered || 0,
+            developingCount: ov.mastery_distribution.developing || 0,
+            attentionCount: ov.mastery_distribution.struggling || 0,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [courses]);
 
   const firstName = user?.name ? user.name.split(' ')[0] : 'Alex';
 

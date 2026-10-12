@@ -4,7 +4,6 @@ import TopicMastery from '../components/progress/TopicMastery';
 import NeedsAttentionCard from '../components/progress/NeedsAttentionCard';
 import RecentProgress from '../components/progress/RecentProgress';
 import analyticsApi from '../api/analyticsApi';
-import { defaultProgressData } from '../data/mockProgressData';
 
 /**
  * CourseProgressPage
@@ -18,7 +17,33 @@ export default function CourseProgressPage({
   onNavigateToPractice,
   onNavigateToTutor,
 }) {
-  const [progressData, setProgressData] = useState(defaultProgressData);
+  const [progressData, setProgressData] = useState(() => ({
+    courseName,
+    courseMastery: {
+      percentage: 0,
+      status: 'Developing',
+      statusVariant: 'developing',
+      message: 'Complete practice questions and engage with the course tutor to begin tracking mastery.',
+    },
+    topicSummary: {
+      total: 0,
+      strong: 0,
+      developing: 0,
+      needsAttention: 0,
+    },
+    topics: [],
+    needsAttention: {
+      topic: 'Core Course Concepts',
+      mastery: 0,
+      status: 'Needs attention',
+      description: 'Review course curriculum and start adaptive practice to trace concept mastery.',
+      recommendedNextStep: 'Start adaptive practice session',
+      footnote: 'Mastery dynamically traced via Bayesian Knowledge Tracing (BKT).',
+      practiceActionLabel: 'Start adaptive practice',
+      tutorActionLabel: 'Ask Tutor for help →',
+    },
+    recentEvents: [],
+  }));
   const [toastMessage, setToastMessage] = useState(null);
 
   const showToast = (msg) => {
@@ -38,28 +63,46 @@ export default function CourseProgressPage({
               name: t.title,
               mastery: Math.round(t.average_mastery * 100),
               statusVariant:
-                t.status === 'mastered' ? 'mastered' : t.status === 'proficient' ? 'proficient' : 'developing',
+                t.status === 'mastered' ? 'strong' : t.status === 'proficient' ? 'developing' : 'attention',
               statusText: t.status.charAt(0).toUpperCase() + t.status.slice(1),
               masteredCount: t.mastered_concepts,
               totalCount: t.total_concepts,
               icon: 'school',
             }));
 
+            // Find lowest mastery topic for needsAttention
+            const lowestTopic = mappedTopics.length > 0
+              ? [...mappedTopics].sort((a, b) => a.mastery - b.mastery)[0]
+              : null;
+
             return {
               ...prev,
               courseMastery: {
                 ...prev.courseMastery,
+                percentage: Math.round(ov.overall_mastery * 100),
                 overallMastery: Math.round(ov.overall_mastery * 100),
                 syllabusCompletion: Math.round(ov.syllabus_completion_rate * 100),
                 readinessScore: Math.round(ov.readiness_score),
               },
-              topics: mappedTopics.length > 0 ? mappedTopics : prev.topics,
+              topics: mappedTopics,
               topicSummary: {
-                total: ov.topic_summaries?.length || prev.topicSummary.total,
-                strong: ov.mastery_distribution?.mastered || prev.topicSummary.strong,
-                developing: ov.mastery_distribution?.developing || prev.topicSummary.developing,
-                needsAttention: ov.mastery_distribution?.struggling || prev.topicSummary.needsAttention,
+                total: ov.topic_summaries?.length || 0,
+                strong: ov.mastery_distribution?.mastered || 0,
+                developing: ov.mastery_distribution?.developing || 0,
+                needsAttention: ov.mastery_distribution?.struggling || 0,
               },
+              needsAttention: lowestTopic
+                ? {
+                    topic: lowestTopic.name,
+                    mastery: lowestTopic.mastery,
+                    status: 'Needs attention',
+                    description: `Topic mastery is currently ${lowestTopic.mastery}%. Reinforce fundamentals with adaptive practice.`,
+                    recommendedNextStep: `Review ${lowestTopic.name} → Practice targeted questions`,
+                    footnote: 'Based on your Bayesian Knowledge Tracing mastery model.',
+                    practiceActionLabel: 'Start adaptive practice',
+                    tutorActionLabel: `Ask Tutor about ${lowestTopic.name} →`,
+                  }
+                : prev.needsAttention,
             };
           });
         }

@@ -16,6 +16,11 @@ class Course(Base):
     )
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
+    owner_id = Column(
+        String(36),
+        nullable=True,
+        index=True
+    )
     created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
