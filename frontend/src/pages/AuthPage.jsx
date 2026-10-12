@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import authApi from '../api/authApi';
 
 export default function AuthPage({
+
   initialMode = 'login',
   onBackToLanding,
   onAuthSuccess,
@@ -29,24 +31,32 @@ export default function AuthPage({
     setErrorMessage(null);
   };
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
     setIsSubmitting(true);
     setStatusMessage('Signing in...');
 
-    setTimeout(() => {
+    try {
+      const res = await authApi.login({
+        username_or_email: loginEmail,
+        password: loginPassword,
+      });
       setStatusMessage('Success. Entering your Edvora workspace...');
       setTimeout(() => {
         setIsSubmitting(false);
         if (onAuthSuccess) {
-          onAuthSuccess({ email: loginEmail, name: loginEmail.split('@')[0] });
+          onAuthSuccess(res.user);
         }
-      }, 700);
-    }, 800);
+      }, 400);
+    } catch (err) {
+      setIsSubmitting(false);
+      setStatusMessage(null);
+      setErrorMessage(err.message || 'Login failed. Please check your credentials.');
+    }
   };
 
-  const handleSignupSubmit = (e) => {
+  const handleSignupSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
 
@@ -63,16 +73,33 @@ export default function AuthPage({
     setIsSubmitting(true);
     setStatusMessage('Creating your learning space...');
 
-    setTimeout(() => {
+    try {
+      const cleanUsername = (signupName || signupEmail.split('@')[0])
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '_')
+        .slice(0, 30) || 'student';
+
+      const res = await authApi.register({
+        email: signupEmail,
+        username: cleanUsername.length >= 3 ? cleanUsername : `${cleanUsername}_user`,
+        password: signupPassword,
+        full_name: signupName,
+      });
+
       setStatusMessage('Workspace ready. Entering Edvora...');
       setTimeout(() => {
         setIsSubmitting(false);
         if (onAuthSuccess) {
-          onAuthSuccess({ email: signupEmail, name: signupName });
+          onAuthSuccess(res.user);
         }
-      }, 700);
-    }, 900);
+      }, 400);
+    } catch (err) {
+      setIsSubmitting(false);
+      setStatusMessage(null);
+      setErrorMessage(err.message || 'Signup failed. Please try a different email.');
+    }
   };
+
 
   const handleGoogleAuth = () => {
     setIsSubmitting(true);

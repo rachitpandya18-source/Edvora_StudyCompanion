@@ -4,7 +4,9 @@ import SourcePanel from './SourcePanel';
 import OutsideMaterialNotice from './OutsideMaterialNotice';
 import FollowUpActions from './FollowUpActions';
 import TutorComposer from './TutorComposer';
+import tutorApi from '../../api/tutorApi';
 import {
+
   defaultTutorSources,
   initialTutorMessages,
   generalKnowledgeAnswer,
@@ -17,15 +19,66 @@ import {
  */
 export default function CourseTutorView({
   user,
+  courseId,
   courseName = 'Data Structures & Algorithms',
 }) {
-  const [sources] = useState(defaultTutorSources);
+  const [sources, setSources] = useState(defaultTutorSources);
   const [messages, setMessages] = useState(initialTutorMessages);
+  const [currentThreadId, setCurrentThreadId] = useState(null);
   const [activeSource, setActiveSource] = useState(2); // Default to Slide 18
   const [isSourcesOpen, setIsSourcesOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [boundaryChoice, setBoundaryChoice] = useState(null); // 'general' | 'course-only' | null
+  const [_isTyping, setIsTyping] = useState(false);
   const chatBottomRef = useRef(null);
+
+  // Initialize or load existing persistent tutor thread for this course
+  useEffect(() => {
+    if (!courseId) return;
+
+    tutorApi.listThreads(courseId)
+      .then((threads) => {
+        if (Array.isArray(threads) && threads.length > 0) {
+          const tid = threads[0].id;
+          setCurrentThreadId(tid);
+          return tutorApi.getThread(courseId, tid);
+        } else {
+          return tutorApi.createThread(courseId, { title: 'Persistent Tutor Session' })
+            .then((newT) => {
+              setCurrentThreadId(newT.id);
+              return null;
+            });
+        }
+      })
+      .then((threadDetail) => {
+        if (threadDetail?.messages && threadDetail.messages.length > 0) {
+          const loaded = threadDetail.messages.map((m) => {
+            const hasCitations = Array.isArray(m.citations) && m.citations.length > 0;
+            return {
+              id: m.id,
+              sender: m.role === 'user' ? 'student' : 'tutor',
+              time: 'Earlier',
+              text: m.content,
+              lead: m.content,
+              isGrounded: m.status === 'answered' || hasCitations,
+              citations: m.citations || [],
+              sourcesSummary: hasCitations
+                ? m.citations.map((c, idx) => ({
+                    num: idx + 1,
+                    label: `${c.source_filename || 'Course Document'} · P.${c.page_number || 1}`,
+                    type: 'PDF',
+                    sourceId: c.source_id,
+                  }))
+                : [],
+            };
+          });
+          setMessages(loaded);
+        }
+      })
+      .catch((err) => {
+        console.warn('Persistent tutor thread load warning:', err);
+      });
+  }, [courseId]);
 
   const userInitials =
     user?.initials ||
@@ -44,7 +97,6 @@ export default function CourseTutorView({
       const mobile = window.innerWidth < 1024;
       setIsMobile(mobile);
       if (mobile) {
-        // Default to closed on small mobile viewports to prioritize conversation
         setIsSourcesOpen(false);
       }
     };
@@ -65,7 +117,7 @@ export default function CourseTutorView({
     setIsSourcesOpen(true);
   };
 
-  const handleSendMessage = (text) => {
+  const handleSendMessage = async (text) => {
     const studentMsg = {
       id: `msg-${Date.now()}`,
       sender: 'student',
@@ -73,7 +125,61 @@ export default function CourseTutorView({
       text,
     };
 
-    // Simulated responsive Tutor answer
+    setMessages((prev) => [...prev, studentMsg]);
+    setIsTyping(true);
+    setTimeout(() => {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+
+    if (courseId && currentThreadId) {
+      try {
+        const assistantMsg = await tutorApi.postMessage(courseId, currentThreadId, {
+          question: text,
+        });
+
+        const hasCits = Array.isArray(assistantMsg.citations) && assistantMsg.citations.length > 0;
+        const liveTutorMsg = {
+          id: assistantMsg.id || `msg-${Date.now() + 1}`,
+          sender: 'tutor',
+          time: 'Just now',
+          isGrounded: assistantMsg.status === 'answered' || hasCits,
+          lead: assistantMsg.content,
+          text: assistantMsg.content,
+          citations: assistantMsg.citations || [],
+          sourcesSummary: hasCits
+            ? assistantMsg.citations.map((c, idx) => ({
+                num: idx + 1,
+                label: `${c.source_filename || 'Course Document'} · P.${c.page_number || 1}`,
+                type: 'PDF',
+                sourceId: c.source_id,
+              }))
+            : [],
+        };
+
+        if (hasCits) {
+          const newSources = assistantMsg.citations.map((c, idx) => ({
+            id: idx + 1,
+            num: idx + 1,
+            title: c.source_filename || 'Course Document',
+            meta: `Page ${c.page_number || 1} · Semantic relevance ${(c.relevance_score ? Math.round(c.relevance_score * 100) : 95)}%`,
+            type: 'PDF',
+            quote: c.snippet || c.exact_quote || 'Course material reference text.',
+          }));
+          setSources(newSources);
+        }
+
+        setMessages((prev) => [...prev, liveTutorMsg]);
+        setIsTyping(false);
+        setTimeout(() => {
+          chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+        return;
+      } catch (err) {
+        console.warn('Live tutor query failed, using responsive fallback:', err);
+      }
+    }
+
+    // Fallback response if offline or cold start
     const simulatedTutorMsg = {
       id: `msg-${Date.now() + 1}`,
       sender: 'tutor',
@@ -102,11 +208,13 @@ export default function CourseTutorView({
       ],
     };
 
-    setMessages((prev) => [...prev, studentMsg, simulatedTutorMsg]);
+    setMessages((prev) => [...prev, simulatedTutorMsg]);
+    setIsTyping(false);
     setTimeout(() => {
       chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   };
+
 
   const handleFollowUpAction = (actionId, label) => {
     const studentFollowUp = {

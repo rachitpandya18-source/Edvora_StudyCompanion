@@ -55,6 +55,7 @@ from app.services.bkt_service import (
     DEFAULT_P_G,
     DEFAULT_P_S,
 )
+from app.api.deps import get_current_student_id
 from app.main import app
 
 # Create test engine and session factory
@@ -250,6 +251,7 @@ def test_assessment_submission_updates_mastery():
     q_id = assessment["questions"][0]["id"]
 
     # Start attempt
+    app.dependency_overrides[get_current_student_id] = lambda: "student_charlie"
     start_resp = client.post(
         f"/courses/{course.id}/assessments/{assessment['id']}/attempts",
         json={"student_id": "student_charlie"},
@@ -319,6 +321,7 @@ def test_skipping_unmapped_and_unanswered_questions():
     q_ids = [q["id"] for q in assessment["questions"]]
 
     # Start attempt
+    app.dependency_overrides[get_current_student_id] = lambda: "student_dana"
     attempt = client.post(
         f"/courses/{course.id}/assessments/{assessment['id']}/attempts",
         json={"student_id": "student_dana"},
@@ -371,6 +374,7 @@ def test_idempotent_submission_prevents_duplicate_bkt_updates():
     assessment = client.post(f"/courses/{course.id}/assessments", json=payload).json()
     q_id = assessment["questions"][0]["id"]
 
+    app.dependency_overrides[get_current_student_id] = lambda: "student_eli"
     attempt = client.post(
         f"/courses/{course.id}/assessments/{assessment['id']}/attempts",
         json={"student_id": "student_eli"},
@@ -438,6 +442,7 @@ def test_learner_and_concept_isolation():
         ],
     }
     ass_a = client.post(f"/courses/{course.id}/assessments", json=payload_a).json()
+    app.dependency_overrides[get_current_student_id] = lambda: "student_1"
     att_1 = client.post(
         f"/courses/{course.id}/assessments/{ass_a['id']}/attempts",
         json={"student_id": "student_1"},
@@ -453,14 +458,17 @@ def test_learner_and_concept_isolation():
     assert s1_a["observation_count"] == 1
 
     # Check Student 2 on Concept A (still initial prior 0.10)
+    app.dependency_overrides[get_current_student_id] = lambda: "student_2"
     s2_a = client.get(f"/courses/{course.id}/mastery/{concept_a.id}?student_id=student_2").json()
     assert s2_a["mastery_probability"] == DEFAULT_P_L0
     assert s2_a["observation_count"] == 0
 
     # Check Student 1 on Concept B (still initial prior 0.10)
+    app.dependency_overrides[get_current_student_id] = lambda: "student_1"
     s1_b = client.get(f"/courses/{course.id}/mastery/{concept_b.id}?student_id=student_1").json()
     assert s1_b["mastery_probability"] == DEFAULT_P_L0
     assert s1_b["observation_count"] == 0
+    app.dependency_overrides.pop(get_current_student_id, None)
 
 
 # ============================================================================

@@ -48,6 +48,7 @@ from app.db.database import Base, get_db
 from app.models.course import Course
 from app.models.assessment import Assessment, Question, AssessmentAttempt, AttemptAnswer
 from app.services.assessment_service import evaluate_single_answer
+from app.api.deps import get_current_student_id
 from app.main import app
 
 # Create test engine and session factory
@@ -477,6 +478,7 @@ def test_attempt_lifecycle_draft_and_submission():
     q_ids = [q["id"] for q in assessment["questions"]]
 
     # 1. Start attempt
+    app.dependency_overrides[get_current_student_id] = lambda: "student_alice"
     start_resp = client.post(
         f"/courses/{course.id}/assessments/{assessment_id}/attempts",
         json={"student_id": "student_alice"},
@@ -599,6 +601,7 @@ def test_partial_and_incorrect_submission():
     q_ids = [q["id"] for q in assessment["questions"]]
 
     # Start attempt
+    app.dependency_overrides[get_current_student_id] = lambda: "bob"
     attempt = client.post(
         f"/courses/{course.id}/assessments/{assessment['id']}/attempts",
         json={"student_id": "bob"},
