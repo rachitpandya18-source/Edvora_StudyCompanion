@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.api.deps import get_current_student_id, get_current_user
+from app.models.user import User
 from app.schemas.tutor import CourseTutorAskRequest, CourseTutorResponse
 from app.schemas.tutor_session import (
     TutorThreadCreate,
@@ -103,15 +105,23 @@ def ask_course_tutor(
 def create_tutor_thread(
     course_id: str,
     payload: TutorThreadCreate,
+    current_user: Optional[User] = Depends(get_current_user),
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
     Creates a new conversation thread scoped to the specified course and student.
     """
+    if current_user:
+        effective_student_id = current_user.id
+    elif payload.student_id:
+        effective_student_id = payload.student_id
+    else:
+        effective_student_id = student_id or "default_student"
     return tutor_session_service.create_tutor_thread(
         db=db,
         course_id=course_id,
-        student_id=payload.student_id,
+        student_id=effective_student_id,
         title=payload.title,
     )
 
@@ -124,16 +134,17 @@ def create_tutor_thread(
 )
 def list_tutor_threads(
     course_id: str,
-    student_id: str = Query("default_student", description="Unique student identifier"),
+    student_id: Optional[str] = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
     Returns all conversation threads owned by the student in chronological order.
     """
+    effective_student_id = student_id or "default_student"
     return tutor_session_service.list_tutor_threads(
         db=db,
         course_id=course_id,
-        student_id=student_id,
+        student_id=effective_student_id,
     )
 
 
@@ -146,17 +157,18 @@ def list_tutor_threads(
 def get_tutor_thread(
     course_id: str,
     thread_id: str,
-    student_id: str = Query("default_student", description="Unique student identifier"),
+    student_id: Optional[str] = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
     Returns the thread metadata and full sequence of user and assistant messages with citations.
     """
+    effective_student_id = student_id or "default_student"
     return tutor_session_service.get_tutor_thread(
         db=db,
         course_id=course_id,
         thread_id=thread_id,
-        student_id=student_id,
+        student_id=effective_student_id,
     )
 
 
@@ -168,17 +180,18 @@ def get_tutor_thread(
 def delete_tutor_thread(
     course_id: str,
     thread_id: str,
-    student_id: str = Query("default_student", description="Unique student identifier"),
+    student_id: Optional[str] = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
     Permanently deletes the thread and cascades deletion to all contained messages.
     """
+    effective_student_id = student_id or "default_student"
     tutor_session_service.delete_tutor_thread(
         db=db,
         course_id=course_id,
         thread_id=thread_id,
-        student_id=student_id,
+        student_id=effective_student_id,
     )
     return {
         "message": f"Tutor thread '{thread_id}' deleted successfully.",
@@ -197,6 +210,8 @@ def post_thread_message(
     course_id: str,
     thread_id: str,
     payload: TutorMessageCreate,
+    current_user: Optional[User] = Depends(get_current_user),
+    student_id: Optional[str] = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -204,12 +219,19 @@ def post_thread_message(
     using recent conversation history, generates a grounded response with authentic citations,
     persists both turns, and returns the assistant message.
     """
+    if current_user:
+        effective_student_id = current_user.id
+    elif payload.student_id:
+        effective_student_id = payload.student_id
+    else:
+        effective_student_id = student_id or "default_student"
     return tutor_session_service.post_thread_message(
         db=db,
         course_id=course_id,
         thread_id=thread_id,
         question=payload.question,
-        student_id=payload.student_id,
+        student_id=effective_student_id,
         source_id=payload.source_id,
         top_k=payload.top_k,
     )
+

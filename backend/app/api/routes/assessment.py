@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.api.deps import get_current_student_id, get_current_user
+from app.models.user import User
 from app.schemas.assessment import (
     AssessmentCreate,
     AssessmentSummary,
@@ -118,17 +120,25 @@ def start_assessment_attempt(
     course_id: str,
     assessment_id: str,
     payload: Optional[StartAttemptRequest] = None,
+    current_user: Optional[User] = Depends(get_current_user),
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
     Initiate a new attempt on the assessment in 'in_progress' state.
+    Uses authenticated student ID (or payload student_id in dev/test mode if allowed).
     """
-    student_id = payload.student_id if payload else "default_student"
+    if current_user:
+        effective_student_id = current_user.id
+    elif payload and payload.student_id:
+        effective_student_id = payload.student_id
+    else:
+        effective_student_id = student_id
     attempt = assessment_service.start_attempt(
         db=db,
         course_id=course_id,
         assessment_id=assessment_id,
-        student_id=student_id,
+        student_id=effective_student_id,
     )
     return assessment_service.format_attempt_view(attempt)
 
@@ -141,7 +151,7 @@ def start_assessment_attempt(
 def list_assessment_attempts(
     course_id: str,
     assessment_id: str,
-    student_id: Optional[str] = None,
+    student_id: Optional[str] = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -156,6 +166,7 @@ def list_assessment_attempts(
     return [assessment_service.format_attempt_view(att) for att in attempts]
 
 
+
 @router.get(
     "/{assessment_id}/attempts/{attempt_id}",
     response_model=AssessmentAttemptResponse,
@@ -165,11 +176,13 @@ def get_assessment_attempt(
     course_id: str,
     assessment_id: str,
     attempt_id: str,
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
     Retrieve an attempt. If in progress, evaluation keys remain hidden.
     If submitted, full results including score, feedback, and explanations are returned.
+    Only the owning student can access this attempt.
     """
     attempt = assessment_service.get_attempt(
         db=db,
@@ -177,6 +190,11 @@ def get_assessment_attempt(
         assessment_id=assessment_id,
         attempt_id=attempt_id,
     )
+    if attempt.student_id != student_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Attempt '{attempt_id}' not found for assessment '{assessment_id}'."
+        )
     return assessment_service.format_attempt_view(attempt)
 
 
@@ -195,11 +213,24 @@ def save_draft_attempt_answers(
     assessment_id: str,
     attempt_id: str,
     payload: SaveDraftRequest,
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
     Persist student answers in-progress. Does not evaluate or lock the attempt.
+    Only the owning student can edit draft answers.
     """
+    attempt = assessment_service.get_attempt(
+        db=db,
+        course_id=course_id,
+        assessment_id=assessment_id,
+        attempt_id=attempt_id,
+    )
+    if attempt.student_id != student_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Attempt '{attempt_id}' not found for assessment '{assessment_id}'."
+        )
     attempt = assessment_service.save_draft_answers(
         db=db,
         course_id=course_id,
@@ -220,6 +251,7 @@ def submit_assessment_attempt(
     assessment_id: str,
     attempt_id: str,
     payload: Optional[SubmitAttemptRequest] = None,
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -227,7 +259,19 @@ def submit_assessment_attempt(
     locks the attempt against further modification, and returns the complete
     score breakdown, question-level correctness, feedback, and explanations.
     Submitting an already submitted attempt is idempotent.
+    Only the owning student can submit their attempt.
     """
+    attempt = assessment_service.get_attempt(
+        db=db,
+        course_id=course_id,
+        assessment_id=assessment_id,
+        attempt_id=attempt_id,
+    )
+    if attempt.student_id != student_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Attempt '{attempt_id}' not found for assessment '{assessment_id}'."
+        )
     final_answers = payload.answers if payload else None
     attempt = assessment_service.submit_attempt(
         db=db,

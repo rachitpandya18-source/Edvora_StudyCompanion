@@ -51,6 +51,7 @@ from app.models.concept import Concept
 from app.models.content_unit import ContentUnit
 from app.models.assessment import Assessment, Question, AssessmentAttempt
 from app.models.learner_mastery import LearnerConceptMastery
+from app.api.deps import get_current_student_id
 from app.main import app
 
 test_engine = create_engine(
@@ -457,6 +458,7 @@ def test_closed_learning_loop_b7_to_b8_to_b5_to_b6_to_b7():
     db.close()
 
     student_id = "loop_student_1"
+    app.dependency_overrides[get_current_student_id] = lambda: student_id
 
     # Step 1: Check initial B7 Study Plan
     resp_plan_initial = client.get(f"/courses/{course.id}/study-plan?student_id={student_id}")

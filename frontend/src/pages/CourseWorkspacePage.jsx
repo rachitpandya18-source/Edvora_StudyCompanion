@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import CourseHeader from '../components/course/CourseHeader';
 import CourseNavigation from '../components/course/CourseNavigation';
@@ -11,6 +11,8 @@ import CourseTutorView from '../components/tutor/CourseTutorView';
 import CoursePracticePage from './CoursePracticePage';
 import CourseMaterialsPage from './CourseMaterialsPage';
 import CourseProgressPage from './CourseProgressPage';
+import curriculumApi from '../api/curriculumApi';
+import analyticsApi from '../api/analyticsApi';
 import { defaultCourseOverviewData } from '../data/mockCourseOverviewData';
 
 /**
@@ -19,7 +21,7 @@ import { defaultCourseOverviewData } from '../data/mockCourseOverviewData';
  */
 export default function CourseWorkspacePage({
   user,
-  _courseId,
+  courseId,
   courseName,
   recentCourses = [],
   initialSection = 'overview',
@@ -28,11 +30,59 @@ export default function CourseWorkspacePage({
   onNavigate,
 }) {
   const [activeSection, setActiveSection] = useState(initialSection);
+  const [liveOverview, setLiveOverview] = useState(null);
+  const [liveStudyNext, setLiveStudyNext] = useState(null);
+  const [hasCurriculum, setHasCurriculum] = useState(true);
 
-  // Merge default mock data with dynamic course name if provided
+  // Fetch real curriculum, study-next recommendation, and analytics overview
+  useEffect(() => {
+    if (!courseId) return;
+
+    // Fetch curriculum status
+    curriculumApi.getCurriculum(courseId)
+      .then((curr) => {
+        if (curr?.topics && curr.topics.length > 0) {
+          setHasCurriculum(true);
+        } else {
+          setHasCurriculum(false);
+        }
+      })
+      .catch(() => {
+        setHasCurriculum(false);
+      });
+
+    // Fetch top study recommendation
+    curriculumApi.getStudyNext(courseId)
+      .then((topRec) => {
+        if (topRec) {
+          setLiveStudyNext({
+            topic: topRec.concept_title || topRec.concept_id,
+            headline: topRec.reason || 'Recommended next concept based on prerequisite readiness',
+            readiness: 'Optimal',
+            actionText: 'Start Session',
+            reason: `Prerequisite depth ${topRec.prerequisite_depth}. Target mastery threshold 0.85.`,
+            estimatedMinutes: 10,
+          });
+        }
+      })
+      .catch(() => {});
+
+    // Fetch analytics overview
+    analyticsApi.getOverview(courseId)
+      .then((ov) => {
+        if (ov) {
+          setLiveOverview(ov);
+        }
+      })
+      .catch(() => {});
+  }, [courseId]);
+
+  // Merge default data with real backend attributes
   const courseData = {
     ...defaultCourseOverviewData,
     courseName: courseName || defaultCourseOverviewData.courseName,
+    mastery: liveOverview ? Math.round(liveOverview.overall_mastery * 100) : defaultCourseOverviewData.mastery,
+    studyNext: liveStudyNext || defaultCourseOverviewData.studyNext,
   };
 
   const handleGlobalNav = (navId, extraData) => {
@@ -41,7 +91,6 @@ export default function CourseWorkspacePage({
     } else if (navId === 'create-course') {
       onCreateCourse?.();
     } else if (navId === 'course-item' && extraData?.id) {
-      // Navigate to another course if clicked in sidebar
       onNavigate?.('course', extraData);
     } else {
       onNavigate?.(navId, extraData);
@@ -53,6 +102,27 @@ export default function CourseWorkspacePage({
       case 'overview':
         return (
           <div className="space-y-8">
+            {!hasCurriculum && (
+              <div className="p-5 rounded-xl bg-[#18181b] border border-[#a78bfa]/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px] text-[#a78bfa]">auto_awesome</span>
+                    Ready for Curriculum Generation
+                  </h4>
+                  <p className="text-xs text-[#a1a1aa]">
+                    Upload course lecture notes or textbooks to automatically extract topics, concepts, and knowledge graph prerequisites.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('materials')}
+                  className="px-4 py-2 rounded-lg bg-[#a78bfa] text-black font-semibold text-xs hover:bg-[#c4b5fd] transition-colors shrink-0 cursor-pointer"
+                >
+                  Upload Materials
+                </button>
+              </div>
+            )}
+
             {/* 1. FULL WIDTH: STUDY NEXT */}
             <CourseStudyNext
               studyNext={courseData.studyNext}
@@ -87,6 +157,7 @@ export default function CourseWorkspacePage({
         return (
           <CourseTutorView
             user={user}
+            courseId={courseId}
             courseName={courseData.courseName}
           />
         );
@@ -94,6 +165,7 @@ export default function CourseWorkspacePage({
       case 'practice':
         return (
           <CoursePracticePage
+            courseId={courseId}
             courseName={courseData.courseName}
           />
         );
@@ -101,13 +173,19 @@ export default function CourseWorkspacePage({
       case 'materials':
         return (
           <CourseMaterialsPage
+            courseId={courseId}
             courseName={courseData.courseName}
+            onCurriculumGenerated={() => {
+              setHasCurriculum(true);
+              setActiveSection('overview');
+            }}
           />
         );
 
       case 'progress':
         return (
           <CourseProgressPage
+            courseId={courseId}
             courseName={courseData.courseName}
             onNavigateToPractice={() => setActiveSection('practice')}
             onNavigateToTutor={() => setActiveSection('tutor')}

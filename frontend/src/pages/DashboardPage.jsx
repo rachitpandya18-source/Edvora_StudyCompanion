@@ -190,14 +190,32 @@ export default function DashboardPage({
 
             {/* Course Cards List */}
             <div className="space-y-4">
-              {courses.map((course) => (
-                <CourseCard
-                  key={course.id}
-                  course={course}
-                  onContinue={handleContinueCourse}
-                />
-              ))}
+              {courses.length === 0 ? (
+                <div className="p-8 text-center rounded-xl bg-[#121215] border border-[#27272a] space-y-3">
+                  <span className="material-symbols-outlined text-3xl text-primary">school</span>
+                  <h3 className="text-sm font-semibold text-white">No courses yet</h3>
+                  <p className="text-xs text-[#a1a1aa] max-w-sm mx-auto">
+                    Create your first course to start studying with personalized AI tutoring and adaptive practice.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onCreateCourse}
+                    className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-semibold cursor-pointer transition-colors"
+                  >
+                    Create Your First Course
+                  </button>
+                </div>
+              ) : (
+                courses.map((course) => (
+                  <CourseCard
+                    key={course.id}
+                    course={course}
+                    onContinue={handleContinueCourse}
+                  />
+                ))
+              )}
             </div>
+
 
             {/* 5. RECENT ACTIVITY */}
             <RecentActivity activities={activities} />

@@ -1,3 +1,4 @@
+import os
 import shutil
 from pathlib import Path
 from typing import List, Optional
@@ -256,7 +257,7 @@ def delete_course_source(
 # Material Upload & Ingestion (Course-scoped)
 # =====================================================================
 
-UPLOAD_BASE_DIR = Path("data/uploads")
+UPLOAD_BASE_DIR = Path(os.getenv("UPLOAD_DIR", "data/uploads"))
 
 
 @router.post(

@@ -2,7 +2,10 @@ import { useState } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import MaterialDropzone from '../components/course/MaterialDropzone';
 import SelectedMaterialList from '../components/course/SelectedMaterialList';
+import coursesApi from '../api/coursesApi';
+import curriculumApi from '../api/curriculumApi';
 import { mockStudentProfile, mockCourses } from '../data/mockDashboardData';
+
 
 const INITIAL_MATERIALS = [
   {
@@ -50,7 +53,11 @@ export default function CreateCoursePage({
     }, 2500);
   };
 
+  const [rawFiles, setRawFiles] = useState([]);
+
   const handleFilesSelected = (newFiles) => {
+    setRawFiles((prev) => [...prev, ...newFiles]);
+
     const formatted = newFiles.map((file, idx) => {
       const ext = file.name.split('.').pop().toLowerCase();
       let type = 'file';
@@ -66,28 +73,19 @@ export default function CreateCoursePage({
         name: file.name,
         type,
         sizeText,
-        status: 'Processing...',
+        status: 'Ready',
       };
     });
 
     setMaterials((prev) => [...prev, ...formatted]);
     showToast(`Added ${formatted.length} file${formatted.length > 1 ? 's' : ''}`);
-
-    // Simulate completion for processing files
-    setTimeout(() => {
-      setMaterials((prev) =>
-        prev.map((m) =>
-          formatted.some((f) => f.id === m.id) ? { ...m, status: 'Ready' } : m
-        )
-      );
-    }, 1500);
   };
 
   const handleRemoveMaterial = (id) => {
     setMaterials((prev) => prev.filter((m) => m.id !== id));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const trimmed = courseName.trim();
 
@@ -98,19 +96,47 @@ export default function CreateCoursePage({
 
     setNameError('');
     setIsCreating(true);
-    showToast('Creating course learning space...');
+    showToast('Creating course in Edvora...');
 
-    setTimeout(() => {
+    try {
+      const createdCourse = await coursesApi.createCourse({
+        title: trimmed,
+        description: description.trim(),
+      });
+
+      // Upload any actual selected files
+      if (rawFiles.length > 0) {
+        showToast(`Uploading ${rawFiles.length} course material(s)...`);
+        for (const file of rawFiles) {
+          if (file.name.toLowerCase().endsWith('.pdf')) {
+            try {
+              await coursesApi.uploadMaterial(createdCourse.id, file);
+            } catch (upErr) {
+              console.warn(`File upload error for ${file.name}:`, upErr);
+            }
+          }
+        }
+
+        // Trigger automatic curriculum generation from uploaded materials
+        try {
+          showToast('Extracting knowledge graph & generating curriculum...');
+          await curriculumApi.generateCurriculum(createdCourse.id, { mode: 'replace' });
+        } catch (genErr) {
+          console.warn('Initial curriculum generation warning:', genErr);
+        }
+      }
+
+      showToast('Course ready! Entering workspace...');
       setIsCreating(false);
       if (onCourseCreated) {
-        onCourseCreated({
-          courseName: trimmed,
-          description: description.trim(),
-          materials,
-        });
+        onCourseCreated(createdCourse);
       }
-    }, 900);
+    } catch (err) {
+      setIsCreating(false);
+      setNameError(err.message || 'Failed to create course. Please try again.');
+    }
   };
+
 
   const handleSidebarNavigate = (navId) => {
     if (navId === 'home' && onBackToDashboard) {

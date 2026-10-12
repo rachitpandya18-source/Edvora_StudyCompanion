@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.api.deps import get_current_student_id
 from app.schemas.learner_mastery import (
     LearnerMasteryInitRequest,
     LearnerConceptMasteryResponse,
@@ -23,7 +24,7 @@ router = APIRouter(
 )
 def get_course_mastery(
     course_id: str,
-    student_id: str = Query(default="default_student", description="Student identifier"),
+    student_id: Optional[str] = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -31,14 +32,15 @@ def get_course_mastery(
     in the specified course for the learner. If a concept has not yet been practiced,
     returns default initial prior knowledge state.
     """
+    effective_student_id = student_id or "default_student"
     masteries = bkt_service.get_course_learner_masteries(
         db=db,
         course_id=course_id,
-        student_id=student_id,
+        student_id=effective_student_id,
     )
     return {
         "course_id": course_id,
-        "student_id": student_id,
+        "student_id": effective_student_id,
         "masteries": masteries,
     }
 
@@ -51,18 +53,19 @@ def get_course_mastery(
 def get_concept_mastery(
     course_id: str,
     concept_id: str,
-    student_id: str = Query(default="default_student", description="Student identifier"),
+    student_id: Optional[str] = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
     Retrieve current BKT-estimated mastery for a specific concept.
     Enforces course scoping: validates that the concept belongs to the specified course.
     """
+    effective_student_id = student_id or "default_student"
     return bkt_service.get_concept_learner_mastery(
         db=db,
         course_id=course_id,
         concept_id=concept_id,
-        student_id=student_id,
+        student_id=effective_student_id,
     )
 
 
@@ -76,13 +79,14 @@ def initialize_concept_mastery_state(
     course_id: str,
     concept_id: str,
     payload: Optional[LearnerMasteryInitRequest] = None,
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
     Explicitly initialize or reset learner state for a specific concept with default
     or custom BKT parameters.
     """
-    student_id = payload.student_id if payload and payload.student_id else "default_student"
+    effective_student_id = student_id or (payload.student_id if payload and payload.student_id else "default_student")
     p_l0 = payload.p_l0 if payload else None
     p_t = payload.p_t if payload else None
     p_g = payload.p_g if payload else None
@@ -92,10 +96,11 @@ def initialize_concept_mastery_state(
         db=db,
         course_id=course_id,
         concept_id=concept_id,
-        student_id=student_id,
+        student_id=effective_student_id,
         p_l0=p_l0,
         p_t=p_t,
         p_g=p_g,
         p_s=p_s,
     )
+
 

@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: edvora_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: edvora
+    ports:
+      - "5432:5432"
+    volumes:
+      - edvora_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: edvora_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgrespassword@db:5432/edvora
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-edvora-production-secret-key-change-in-prod}
+      ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:3000,http://localhost:80"
+      UPLOAD_DIR: "/app/data/uploads"
+      CHROMA_PERSIST_DIR: "/app/data/chroma_db"
+      ENVIRONMENT: "production"
+    ports:
+      - "8000:8000"
+    volumes:
+      - edvora_uploads:/app/data/uploads
+      - edvora_chroma:/app/data/chroma_db
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: edvora_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  edvora_pgdata:
+  edvora_uploads:
+  edvora_chroma:
+

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CourseMasteryCard from '../components/progress/CourseMasteryCard';
 import TopicMastery from '../components/progress/TopicMastery';
 import NeedsAttentionCard from '../components/progress/NeedsAttentionCard';
 import RecentProgress from '../components/progress/RecentProgress';
+import analyticsApi from '../api/analyticsApi';
 import { defaultProgressData } from '../data/mockProgressData';
 
 /**
@@ -12,17 +13,59 @@ import { defaultProgressData } from '../data/mockProgressData';
  * high-priority recommendations, and recent learning events.
  */
 export default function CourseProgressPage({
-  _courseName = 'Data Structures & Algorithms',
+  courseId,
+  courseName = 'Data Structures & Algorithms',
   onNavigateToPractice,
   onNavigateToTutor,
 }) {
-  const [progressData] = useState(defaultProgressData);
+  const [progressData, setProgressData] = useState(defaultProgressData);
   const [toastMessage, setToastMessage] = useState(null);
 
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  useEffect(() => {
+    if (!courseId) return;
+
+    analyticsApi.getOverview(courseId)
+      .then((ov) => {
+        if (ov) {
+          setProgressData((prev) => {
+            const mappedTopics = (ov.topic_summaries || []).map((t, idx) => ({
+              id: t.topic_id || `t-${idx}`,
+              name: t.title,
+              mastery: Math.round(t.average_mastery * 100),
+              statusVariant:
+                t.status === 'mastered' ? 'mastered' : t.status === 'proficient' ? 'proficient' : 'developing',
+              statusText: t.status.charAt(0).toUpperCase() + t.status.slice(1),
+              masteredCount: t.mastered_concepts,
+              totalCount: t.total_concepts,
+              icon: 'school',
+            }));
+
+            return {
+              ...prev,
+              courseMastery: {
+                ...prev.courseMastery,
+                overallMastery: Math.round(ov.overall_mastery * 100),
+                syllabusCompletion: Math.round(ov.syllabus_completion_rate * 100),
+                readinessScore: Math.round(ov.readiness_score),
+              },
+              topics: mappedTopics.length > 0 ? mappedTopics : prev.topics,
+              topicSummary: {
+                total: ov.topic_summaries?.length || prev.topicSummary.total,
+                strong: ov.mastery_distribution?.mastered || prev.topicSummary.strong,
+                developing: ov.mastery_distribution?.developing || prev.topicSummary.developing,
+                needsAttention: ov.mastery_distribution?.struggling || prev.topicSummary.needsAttention,
+              },
+            };
+          });
+        }
+      })
+      .catch(() => {});
+  }, [courseId]);
 
   const handlePracticeTopic = (topic) => {
     if (onNavigateToPractice) {
@@ -68,7 +111,7 @@ export default function CourseProgressPage({
               Progress
             </h2>
             <p className="text-sm md:text-base text-[#a1a1aa] mt-1.5">
-              Your learning progress across this course.
+              Your learning progress across {courseName}.
             </p>
           </div>
 
@@ -98,7 +141,7 @@ export default function CourseProgressPage({
 
       {/* Two-Column Core Balanced Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column (7 cols): Topic Mastery */}
+        {/* Left Column (Span 7): Topic Breakdown List */}
         <div className="lg:col-span-7">
           <TopicMastery
             topics={progressData.topics}
@@ -106,18 +149,16 @@ export default function CourseProgressPage({
           />
         </div>
 
-        {/* Right Column (5 cols): Needs Attention & Recent Progress */}
+        {/* Right Column (Span 5): High Priority Attention & Chronological History */}
         <div className="lg:col-span-5 space-y-6">
           <NeedsAttentionCard
-            data={progressData.needsAttention}
+            needsAttentionData={progressData.needsAttention}
             onStartPractice={handleStartAdaptivePractice}
             onAskTutor={handleAskTutor}
           />
-
-          <RecentProgress events={progressData.recentProgress} />
+          <RecentProgress activities={progressData.recentEvents} />
         </div>
       </div>
     </div>
   );
 }
-

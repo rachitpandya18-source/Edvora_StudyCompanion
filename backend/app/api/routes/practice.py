@@ -1,7 +1,10 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.api.deps import get_current_student_id, get_current_user
+from app.models.user import User
 from app.schemas.practice import (
     PracticeGenerateRequest,
     PracticeSessionResponse,
@@ -24,6 +27,8 @@ router = APIRouter(
 def generate_practice(
     course_id: str,
     payload: PracticeGenerateRequest,
+    current_user: Optional[User] = Depends(get_current_user),
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -31,11 +36,18 @@ def generate_practice(
     (adaptive, quick, or mock_test), persists questions into the Assessment engine,
     initiates an active student attempt, and returns student-safe questions.
     """
+    if current_user:
+        payload.student_id = current_user.id
+    elif payload.student_id:
+        pass
+    else:
+        payload.student_id = student_id or "default_student"
     return practice_service.generate_practice_session(
         db=db,
         course_id=course_id,
         request=payload,
     )
+
 
 
 @router.get(
