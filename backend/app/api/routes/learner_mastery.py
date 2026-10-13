@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.api.deps import get_current_student_id
+from app.api.deps import get_current_student_id, verify_course_owner
+from app.models.course import Course
 from app.schemas.learner_mastery import (
     LearnerMasteryInitRequest,
     LearnerConceptMasteryResponse,
@@ -24,7 +25,8 @@ router = APIRouter(
 )
 def get_course_mastery(
     course_id: str,
-    student_id: Optional[str] = Depends(get_current_student_id),
+    course: Course = Depends(verify_course_owner),
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -53,7 +55,8 @@ def get_course_mastery(
 def get_concept_mastery(
     course_id: str,
     concept_id: str,
-    student_id: Optional[str] = Depends(get_current_student_id),
+    course: Course = Depends(verify_course_owner),
+    student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
     """
@@ -79,6 +82,7 @@ def initialize_concept_mastery_state(
     course_id: str,
     concept_id: str,
     payload: Optional[LearnerMasteryInitRequest] = None,
+    course: Course = Depends(verify_course_owner),
     student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):

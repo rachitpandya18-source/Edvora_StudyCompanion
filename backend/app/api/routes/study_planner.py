@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.api.deps import get_current_student_id
+from app.api.deps import get_current_student_id, verify_course_owner
+from app.models.course import Course
 from app.schemas.study_planner import (
     StudyNextResponse,
     StudyPlanResponse,
@@ -23,6 +24,7 @@ router = APIRouter(
 )
 def get_study_next(
     course_id: str,
+    course: Course = Depends(verify_course_owner),
     student_id: Optional[str] = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
@@ -47,6 +49,7 @@ def get_study_next(
 )
 def get_study_plan(
     course_id: str,
+    course: Course = Depends(verify_course_owner),
     student_id: Optional[str] = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):

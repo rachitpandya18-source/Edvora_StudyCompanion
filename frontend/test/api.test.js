@@ -107,3 +107,39 @@ test('client apiFetch handles empty response gracefully', async () => {
   assert.deepEqual(result, { items: [] });
 });
 
+// Test E: curriculumApi.generateCurriculum sends concepts_per_topic matching backend schema
+test('curriculumApi.generateCurriculum formats concepts_per_topic payload correctly', async () => {
+  let capturedUrl = null;
+  let capturedOptions = null;
+
+  globalThis.fetch = async (url, options) => {
+    capturedUrl = url;
+    capturedOptions = options;
+    return {
+      ok: true,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({
+        course_id: 'c-100',
+        topics: [],
+        concepts: [],
+        edges: [],
+      }),
+    };
+  };
+
+  const { generateCurriculum } = await import('../src/api/curriculumApi.js');
+  const result = await generateCurriculum('c-100', {
+    mode: 'replace',
+    max_topics: 4,
+    concepts_per_topic: 3,
+  });
+
+  assert.equal(capturedUrl, 'http://localhost:8000/courses/c-100/curriculum/generate');
+  assert.equal(capturedOptions.method, 'POST');
+  const parsedBody = JSON.parse(capturedOptions.body);
+  assert.equal(parsedBody.mode, 'replace');
+  assert.equal(parsedBody.max_topics, 4);
+  assert.equal(parsedBody.concepts_per_topic, 3);
+  assert.equal(parsedBody.max_concepts_per_topic, undefined);
+  assert.equal(result.course_id, 'c-100');
+});

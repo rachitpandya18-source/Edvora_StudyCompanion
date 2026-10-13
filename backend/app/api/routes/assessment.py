@@ -3,8 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.api.deps import get_current_student_id, get_current_user
+from app.api.deps import get_current_student_id, get_current_user, verify_course_owner
 from app.models.user import User
+from app.models.course import Course
 from app.schemas.assessment import (
     AssessmentCreate,
     AssessmentSummary,
@@ -35,6 +36,7 @@ router = APIRouter(
 def create_course_assessment(
     course_id: str,
     payload: AssessmentCreate,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db),
 ):
     """
@@ -56,6 +58,7 @@ def create_course_assessment(
 )
 def list_course_assessments(
     course_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db),
 ):
     """
@@ -72,6 +75,7 @@ def list_course_assessments(
 def get_course_assessment(
     course_id: str,
     assessment_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db),
 ):
     """
@@ -93,6 +97,7 @@ def get_course_assessment(
 def delete_course_assessment(
     course_id: str,
     assessment_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db),
 ):
     """
@@ -120,6 +125,7 @@ def start_assessment_attempt(
     course_id: str,
     assessment_id: str,
     payload: Optional[StartAttemptRequest] = None,
+    course: Course = Depends(verify_course_owner),
     current_user: Optional[User] = Depends(get_current_user),
     student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
@@ -151,6 +157,7 @@ def start_assessment_attempt(
 def list_assessment_attempts(
     course_id: str,
     assessment_id: str,
+    course: Course = Depends(verify_course_owner),
     student_id: Optional[str] = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
@@ -176,6 +183,7 @@ def get_assessment_attempt(
     course_id: str,
     assessment_id: str,
     attempt_id: str,
+    course: Course = Depends(verify_course_owner),
     student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
@@ -213,6 +221,7 @@ def save_draft_attempt_answers(
     assessment_id: str,
     attempt_id: str,
     payload: SaveDraftRequest,
+    course: Course = Depends(verify_course_owner),
     student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
@@ -251,6 +260,7 @@ def submit_assessment_attempt(
     assessment_id: str,
     attempt_id: str,
     payload: Optional[SubmitAttemptRequest] = None,
+    course: Course = Depends(verify_course_owner),
     student_id: str = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):

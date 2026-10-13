@@ -51,6 +51,7 @@ router = APIRouter(
 def create_topic(
     course_id: str,
     topic_in: TopicCreate,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -78,6 +79,7 @@ def list_topics(
     course_id: str,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -103,6 +105,7 @@ def list_topics(
 def get_topic(
     course_id: str,
     topic_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -129,6 +132,7 @@ def update_topic(
     course_id: str,
     topic_id: str,
     topic_in: TopicUpdate,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -155,6 +159,7 @@ def update_topic(
 def delete_topic(
     course_id: str,
     topic_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -185,6 +190,7 @@ def create_concept_under_topic(
     course_id: str,
     topic_id: str,
     concept_in: ConceptCreate,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -212,6 +218,7 @@ def create_concept_under_topic(
 def create_concept(
     course_id: str,
     concept_in: CourseConceptCreate,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -240,6 +247,7 @@ def list_concepts_under_topic(
     topic_id: str,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -267,6 +275,7 @@ def list_course_concepts(
     course_id: str,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -293,6 +302,7 @@ def list_course_concepts(
 def get_concept(
     course_id: str,
     concept_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -330,6 +340,7 @@ def update_concept(
     course_id: str,
     concept_id: str,
     concept_in: ConceptUpdate,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -357,6 +368,7 @@ def update_concept(
 def delete_concept(
     course_id: str,
     concept_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -387,6 +399,7 @@ def add_prerequisite(
     course_id: str,
     concept_id: str,
     prereq_in: PrerequisiteCreate,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -414,6 +427,7 @@ def add_prerequisite(
 def get_prerequisites(
     course_id: str,
     concept_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -438,6 +452,7 @@ def remove_prerequisite(
     course_id: str,
     concept_id: str,
     prerequisite_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:
@@ -471,6 +486,7 @@ def remove_prerequisite(
 )
 def get_course_curriculum(
     course_id: str,
+    course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
     try:

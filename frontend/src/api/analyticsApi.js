@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch } from './client.js';
 
 export async function getOverview(courseId, { trendDays = 30 } = {}) {
   return await apiFetch(`/courses/${courseId}/analytics/overview?trend_days=${trendDays}`, {

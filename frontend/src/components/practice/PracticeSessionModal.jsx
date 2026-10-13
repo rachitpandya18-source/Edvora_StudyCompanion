@@ -115,13 +115,8 @@ export default function PracticeSessionModal({
       }
     }
 
-    // If no courseId/attemptId (e.g. previewing demo), truthful completion message
-    setEvaluationResult({
-      score: 1.0,
-      earned_points: 1,
-      total_points: 1,
-      feedback: 'Demo preview completed. Connect a live course to record Bayesian Knowledge Tracing mastery updates.',
-    });
+    // If no courseId/attemptId, fail truthfully instead of synthesizing fake score
+    setSubmitError('Unable to record practice attempt: missing active course or assessment session.');
     setIsSubmitting(false);
   };
 
@@ -135,7 +130,12 @@ export default function PracticeSessionModal({
       />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-2xl bg-[#0c0c0f] border border-[#27272a] rounded-xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[90vh]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="relative w-full max-w-2xl bg-[#0c0c0f] border border-[#27272a] rounded-xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[90vh]"
+      >
         {/* Header */}
         <div className="h-14 px-6 border-b border-[#27272a] flex items-center justify-between bg-[#0f0f12] shrink-0">
           <div className="flex items-center gap-2.5">

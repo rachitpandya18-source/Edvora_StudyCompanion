@@ -37,75 +37,42 @@ export default function LearningMapPreview({
 
       {/* Simple Concept Relationship Visualization */}
       <div className="bg-[#18181c] border border-[#222227] rounded-lg p-5">
-        <div className="space-y-2">
-          {/* Level 1: Arrays */}
-          <div className="flex items-center gap-3">
-            <div className="px-3.5 py-1.5 rounded-md bg-[#121215] border border-[#2e2e36] text-[15px] font-medium text-white flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#34d399]" />
-              <span>Arrays</span>
-            </div>
-            <span className="text-xs font-mono text-[#71717a]">
-              Prerequisite mastered
-            </span>
+        {(!learningMap?.nodes || learningMap.nodes.length === 0) ? (
+          <div className="text-center py-6 text-xs font-mono text-[#71717a]">
+            Curriculum learning map will appear here once topics and concepts are established.
           </div>
-
-          {/* Connector 1 */}
-          <div className="pl-5 text-[#3f3f46] leading-none select-none text-[15px] font-mono">
-            &darr;
-          </div>
-
-          {/* Level 2: Linked Lists */}
-          <div className="flex items-center gap-3">
-            <div className="px-3.5 py-1.5 rounded-md bg-[#121215] border border-[#2e2e36] text-[15px] font-medium text-white flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#34d399]" />
-              <span>Linked Lists</span>
-            </div>
-            <span className="text-xs font-mono text-[#71717a]">
-              Pointers &amp; dynamic chains
-            </span>
-          </div>
-
-          {/* Connector 2 */}
-          <div className="pl-5 text-[#3f3f46] leading-none select-none text-[15px] font-mono">
-            &darr;
-          </div>
-
-          {/* Level 3: Trees Branching */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="px-3.5 py-1.5 rounded-md bg-[#121215] border border-[#a78bfa]/40 text-[15px] font-medium text-white flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#a78bfa]" />
-                <span>Trees</span>
-              </div>
-              <span className="text-xs font-mono text-[#a78bfa]">
-                Hierarchical data
-              </span>
-            </div>
-
-            {/* Branches */}
-            <div className="pl-6 space-y-2 border-l border-[#2e2e36] ml-4 mt-2 pt-1">
-              <div className="flex items-center gap-3 relative before:content-[''] before:absolute before:-left-6 before:top-3 before:w-4 before:h-px before:bg-[#2e2e36]">
-                <div className="px-3 py-1 rounded-md bg-[#121215] border border-[#2e2e36] text-[14px] text-[#e4e4e7] flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#34d399]" />
-                  <span>Binary Trees</span>
+        ) : (
+          <div className="space-y-3">
+            {learningMap.nodes.map((node, idx) => (
+              <React.Fragment key={node.id || idx}>
+                <div className="flex items-center gap-3">
+                  <div className="px-3.5 py-1.5 rounded-md bg-[#121215] border border-[#2e2e36] text-[15px] font-medium text-white flex items-center gap-2">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        node.status === 'strong'
+                          ? 'bg-[#34d399]'
+                          : node.status === 'attention'
+                          ? 'bg-[#fbbf24]'
+                          : 'bg-[#a78bfa]'
+                      }`}
+                    />
+                    <span>{node.title}</span>
+                  </div>
+                  {node.note && (
+                    <span className="text-xs font-mono text-[#71717a]">
+                      {node.note}
+                    </span>
+                  )}
                 </div>
-                <span className="text-[12px] font-mono text-[#71717a]">
-                  BST property
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3 relative before:content-[''] before:absolute before:-left-6 before:top-3 before:w-4 before:h-px before:bg-[#2e2e36]">
-                <div className="px-3 py-1 rounded-md bg-[#121215] border border-[#fbbf24]/50 text-[14px] text-white flex items-center gap-2 ring-1 ring-[#fbbf24]/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#fbbf24]" />
-                  <span className="font-medium">AVL Trees</span>
-                </div>
-                <span className="text-[12px] font-mono text-[#fbbf24]">
-                  Rotations &amp; balance invariant
-                </span>
-              </div>
-            </div>
+                {idx < learningMap.nodes.length - 1 && (
+                  <div className="pl-5 text-[#3f3f46] leading-none select-none text-[15px] font-mono">
+                    &darr;
+                  </div>
+                )}
+              </React.Fragment>
+            ))}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Student-facing descriptive note */}

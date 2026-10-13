@@ -21,14 +21,17 @@ htmlcov/
 *.sqlite
 *.sqlite3
 
-# Node.js / Vite
+# Node.js / Vite / Playwright
 node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+test-results/
+playwright-report/
 
 # Runtime data and uploads
 backend/data/uploads/
+data/
 
 # Editor and operating-system files
 .vscode/

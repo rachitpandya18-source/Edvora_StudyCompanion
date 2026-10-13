@@ -27,24 +27,30 @@ export default function RecentProgress({ events = [] }) {
       </div>
 
       <div className="space-y-3.5">
-        {events.map((event, idx) => (
-          <div
-            key={event.id || idx}
-            className={`flex items-start justify-between gap-3 text-xs ${
-              idx > 0 ? 'border-t border-[#27272a]/50 pt-3' : ''
-            }`}
-          >
-            <div className="space-y-0.5">
-              <p className="font-medium text-white">{event.title}</p>
-              <p className={getChangeStyle(event.changeVariant)}>
-                {event.change}
-              </p>
+        {events.length === 0 ? (
+          <p className="text-xs text-[#71717a] font-mono py-2">
+            No recent progress events recorded yet.
+          </p>
+        ) : (
+          events.map((event, idx) => (
+            <div
+              key={event.id || idx}
+              className={`flex items-start justify-between gap-3 text-xs ${
+                idx > 0 ? 'border-t border-[#27272a]/50 pt-3' : ''
+              }`}
+            >
+              <div className="space-y-0.5">
+                <p className="font-medium text-white">{event.title}</p>
+                <p className={getChangeStyle(event.changeVariant)}>
+                  {event.change}
+                </p>
+              </div>
+              <span className="text-[11px] text-[#a1a1aa] font-mono shrink-0">
+                {event.time}
+              </span>
             </div>
-            <span className="text-[11px] text-[#a1a1aa] font-mono shrink-0">
-              {event.time}
-            </span>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

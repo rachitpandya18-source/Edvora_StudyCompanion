@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch } from './client.js';
 
 export async function listThreads(courseId) {
   return await apiFetch(`/courses/${courseId}/tutor/threads`, {

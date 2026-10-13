@@ -83,9 +83,11 @@ def cleanup_temp_db_file():
 
 @pytest.fixture(autouse=True)
 def setup_and_teardown_db():
+    app.dependency_overrides[get_db] = override_get_db
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
+    app.dependency_overrides.pop(get_db, None)
 
 
 # =====================================================================

@@ -56,7 +56,14 @@ export default function CourseMaterialsPage({
   }, [courseId]);
 
   useEffect(() => {
-    loadSources();
+    let ignore = false;
+    queueMicrotask(() => {
+      if (ignore) return;
+      loadSources();
+    });
+    return () => {
+      ignore = true;
+    };
   }, [loadSources]);
 
 
@@ -108,9 +115,10 @@ export default function CourseMaterialsPage({
     showToast(`Uploading ${newFiles.length} course material(s)...`);
 
     for (const fileItem of newFiles) {
-      if (fileItem.file) {
+      const fileToUpload = fileItem.file || fileItem.rawFile || fileItem;
+      if (fileToUpload instanceof File || fileToUpload instanceof Blob) {
         try {
-          await coursesApi.uploadMaterial(courseId, fileItem.file);
+          await coursesApi.uploadMaterial(courseId, fileToUpload);
         } catch (err) {
           console.warn(`Upload error for ${fileItem.name}:`, err);
         }

@@ -77,11 +77,13 @@ SAMPLE_PDF_PATH = os.path.join(os.path.dirname(__file__), "data", "uploads", "ph
 
 @pytest.fixture(autouse=True)
 def setup_and_teardown_db():
+    app.dependency_overrides[get_db] = override_get_db
     with test_engine.connect() as conn:
         conn.exec_driver_sql("PRAGMA foreign_keys=ON")
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
+    app.dependency_overrides.pop(get_db, None)
 
 
 @pytest.fixture(scope="session", autouse=True)

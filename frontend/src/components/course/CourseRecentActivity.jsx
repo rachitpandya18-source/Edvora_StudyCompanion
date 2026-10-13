@@ -47,7 +47,12 @@ export default function CourseRecentActivity({ activities = [] }) {
 
       {/* Activity List */}
       <div className="space-y-3">
-        {activities.map((item) => (
+        {activities.length === 0 ? (
+          <div className="text-center py-6 text-xs font-mono text-[#71717a]">
+            No recent activity in this course yet. Complete practice sessions or consult the tutor to build your activity history.
+          </div>
+        ) : (
+          activities.map((item) => (
           <div
             key={item.id}
             className="p-3.5 rounded-lg bg-[#18181c] border border-[#222227] flex items-start gap-3.5"
@@ -72,7 +77,7 @@ export default function CourseRecentActivity({ activities = [] }) {
               </div>
             </div>
           </div>
-        ))}
+        )))}
       </div>
     </section>
   );

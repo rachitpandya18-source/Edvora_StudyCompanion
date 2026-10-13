@@ -53,14 +53,20 @@ export default function SourcePanel({
 
       {/* Scrollable Source Cards Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {sources.map((src) => (
-          <SourceCard
-            key={src.id || src.number}
-            source={src}
-            isActive={activeSource === src.number}
-            onSelect={onSelectSource}
-          />
-        ))}
+        {sources.length === 0 ? (
+          <div className="p-4 text-center text-xs text-[#71717a]">
+            No source documents cited yet. Citations and excerpts will appear here when the tutor grounds responses in your course materials.
+          </div>
+        ) : (
+          sources.map((src) => (
+            <SourceCard
+              key={src.id || src.number}
+              source={src}
+              isActive={activeSource === src.number}
+              onSelect={onSelectSource}
+            />
+          ))
+        )}
       </div>
 
       {/* Viewer Footer */}

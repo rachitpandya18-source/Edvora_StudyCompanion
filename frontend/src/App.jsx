@@ -7,7 +7,6 @@ import CourseWorkspacePage from './pages/CourseWorkspacePage';
 import { getStoredToken, getStoredUser, clearAuthSession } from './api/client';
 import authApi from './api/authApi';
 import coursesApi from './api/coursesApi';
-import { mockCourses } from './data/mockDashboardData';
 
 function App() {
   const [currentUser, setCurrentUser] = useState(() => getStoredUser());
@@ -67,48 +66,18 @@ function App() {
 
   useEffect(() => {
     let ignore = false;
-    async function load() {
+    queueMicrotask(() => {
+      if (ignore) return;
       if (currentUser) {
-        setIsLoadingCourses(true);
-        try {
-          const data = await coursesApi.listCourses();
-          if (ignore) return;
-          const items = data?.items || [];
-          if (items.length > 0) {
-            const formatted = items.map((c) => ({
-              id: c.id,
-              code: c.title.slice(0, 6).toUpperCase(),
-              title: c.title,
-              category: c.description || 'Academic Study Course',
-              mastery: 0,
-              statusText: 'Active',
-              statusVariant: 'developing',
-              statusColor: '#a78bfa',
-              currentlyLearning: c.sources?.[0]?.filename || 'Course Overview',
-              lastStudied: 'Recently',
-              materials: {
-                textbooks: c.sources?.filter((s) => s.source_type === 'pdf').length || 0,
-                slides: c.sources?.filter((s) => ['ppt', 'pptx'].includes(s.source_type)).length || 0,
-                lectures: c.sources?.filter((s) => ['video', 'mp4'].includes(s.source_type)).length || 0,
-              },
-              primaryAction: 'Continue',
-            }));
-            setCourses(formatted);
-          } else {
-            setCourses(mockCourses);
-          }
-        } catch {
-          if (!ignore) setCourses(mockCourses);
-        } finally {
-          if (!ignore) setIsLoadingCourses(false);
-        }
+        fetchCourses();
+      } else {
+        setCourses([]);
       }
-    }
-    load();
+    });
     return () => {
       ignore = true;
     };
-  }, [currentUser]);
+  }, [currentUser, fetchCourses]);
 
 
 

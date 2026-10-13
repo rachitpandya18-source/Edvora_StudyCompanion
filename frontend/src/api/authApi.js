@@ -1,4 +1,4 @@
-import { apiFetch, setStoredToken, setStoredUser, clearAuthSession } from './client';
+import { apiFetch, setStoredToken, setStoredUser, clearAuthSession } from './client.js';
 
 export async function register({ email, username, password, full_name }) {
   const result = await apiFetch('/auth/register', {

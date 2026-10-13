@@ -8,6 +8,7 @@ import React from 'react';
 export default function RecentPractice({
   sessions = [],
   onViewAllSessions,
+  onReviewSession,
 }) {
   const getScoreBadgeStyle = (variant) => {
     switch (variant) {
@@ -38,10 +39,16 @@ export default function RecentPractice({
       </div>
 
       <div className="border border-[#27272a] rounded-xl divide-y divide-[#27272a] bg-[#121215] overflow-hidden">
-        {sessions.map((sess) => (
+        {sessions.length === 0 ? (
+          <div className="p-6 text-center text-xs font-mono text-[#71717a]">
+            No practice sessions recorded yet. Start a practice session above to begin practicing.
+          </div>
+        ) : (
+          sessions.map((sess) => (
           <div
             key={sess.id}
-            className="p-4 px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#18181b] transition-colors"
+            onClick={() => onReviewSession?.(sess)}
+            className="p-4 px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#18181b] transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-3">
               <span
@@ -70,7 +77,7 @@ export default function RecentPractice({
               <span className="text-[#71717a]">{sess.time}</span>
             </div>
           </div>
-        ))}
+        )))}
       </div>
     </section>
   );
