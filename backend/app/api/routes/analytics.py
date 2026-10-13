@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.api.deps import get_current_student_id
+from app.api.deps import get_current_student_id, verify_course_owner
+from app.models.course import Course
 from app.schemas.analytics import (
     CourseAnalyticsOverview,
     TopicAnalyticsDetail,
@@ -24,6 +25,7 @@ router = APIRouter(
 )
 def get_course_analytics_overview(
     course_id: str,
+    course: Course = Depends(verify_course_owner),
     learner_id: Optional[str] = Depends(get_current_student_id),
     trend_days: int = Query(30, ge=1, le=365, description="Lookback window in days for recent accuracy"),
     db: Session = Depends(get_db),
@@ -50,6 +52,7 @@ def get_course_analytics_overview(
 def get_topic_analytics_detail(
     course_id: str,
     topic_id: str,
+    course: Course = Depends(verify_course_owner),
     learner_id: Optional[str] = Depends(get_current_student_id),
     db: Session = Depends(get_db),
 ):
@@ -74,6 +77,7 @@ def get_topic_analytics_detail(
 )
 def get_learner_velocity_trends(
     course_id: str,
+    course: Course = Depends(verify_course_owner),
     learner_id: Optional[str] = Depends(get_current_student_id),
     days: int = Query(30, description="Lookback window in days"),
     db: Session = Depends(get_db),

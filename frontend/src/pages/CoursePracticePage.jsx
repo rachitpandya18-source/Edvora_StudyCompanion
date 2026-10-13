@@ -7,7 +7,6 @@ import CustomizePracticeModal from '../components/practice/CustomizePracticeModa
 import RecentPractice from '../components/practice/RecentPractice';
 import PracticeSessionModal from '../components/practice/PracticeSessionModal';
 import practiceApi from '../api/practiceApi';
-import { defaultPracticeData } from '../data/mockPracticeData';
 
 /**
  * CoursePracticePage
@@ -16,9 +15,35 @@ import { defaultPracticeData } from '../data/mockPracticeData';
  */
 export default function CoursePracticePage({
   courseId,
-  courseName = 'Data Structures & Algorithms',
+  courseName = 'Course Overview',
 }) {
-  const [practiceData, setPracticeData] = useState(defaultPracticeData);
+  const [practiceData, setPracticeData] = useState({
+    courseName,
+    adaptivePractice: {
+      topic: 'Core Curriculum',
+      mastery: 0,
+      statusText: 'Ready',
+      badge: 'RECOMMENDED · ADAPTIVE PRACTICE',
+      headline: `Practice ${courseName}`,
+      description: 'Strengthen core concepts with calibrated questions.',
+      questionCount: 5,
+      estimatedMinutes: 8,
+      whyThis: 'Edvora adaptive engine prioritizes active learning for this course.',
+    },
+    quickPractice: {
+      title: 'Quick Practice',
+      description: 'Practice for a few minutes across recent topics without configuring settings.',
+      questionCount: 5,
+      estimatedMinutes: 5,
+      metadata: '~5 minutes · 5 mixed questions',
+    },
+    mockTest: {
+      title: 'Mock Test',
+      description: 'Simulate a timed exam across all covered topics in this course.',
+      metadata: 'Timed · Comprehensive · Exam conditions',
+    },
+    recentSessions: [],
+  });
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [activeSession, setActiveSession] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
@@ -48,112 +73,81 @@ export default function CoursePracticePage({
   }, [courseId]);
 
   const handleStartPractice = async (mode) => {
+    if (!courseId) {
+      showToast('Please select a course to practice.');
+      return;
+    }
     showToast(`Launching ${mode} practice session...`);
 
-    if (courseId) {
-      try {
-        const session = await practiceApi.generatePractice(courseId, {
-          mode: mode === 'mock-test' ? 'mock_test' : mode,
-          num_questions: mode === 'quick' ? 3 : mode === 'mock-test' ? 10 : 5,
+    try {
+      const session = await practiceApi.generatePractice(courseId, {
+        mode: mode === 'mock-test' ? 'mock_test' : mode,
+        question_count: mode === 'quick' ? 3 : mode === 'mock-test' ? 10 : 3,
+      });
+
+      if (session && session.questions && session.questions.length > 0) {
+        setActiveSession({
+          courseId,
+          assessmentId: session.assessment_id,
+          attemptId: session.attempt_id,
+          title:
+            mode === 'adaptive'
+              ? `Adaptive Practice: ${session.questions[0].concept_title || 'Targeted'}`
+              : mode === 'quick'
+              ? 'Quick Practice: Mixed Topics'
+              : `Comprehensive Mock Test: ${courseName}`,
+          topic: session.questions[0].concept_title || 'Course Concepts',
+          questionCount: session.questions.length,
+          questions: session.questions,
+          estimatedMinutes: Math.round(session.questions.length * 1.8),
+          difficulty: mode === 'adaptive' ? 'Adaptive (Calibrated)' : 'Standard',
+          type: 'Concept Evaluation',
         });
-
-        if (session && session.questions && session.questions.length > 0) {
-          setActiveSession({
-            courseId,
-            assessmentId: session.assessment_id,
-            attemptId: session.attempt_id,
-            title:
-              mode === 'adaptive'
-                ? `Adaptive Practice: ${session.questions[0].concept_title || 'Targeted'}`
-                : mode === 'quick'
-                ? 'Quick Practice: Mixed Topics'
-                : `Comprehensive Mock Test: ${courseName}`,
-            topic: session.questions[0].concept_title || 'Course Concepts',
-            questionCount: session.questions.length,
-            questions: session.questions,
-            estimatedMinutes: Math.round(session.questions.length * 1.8),
-            difficulty: mode === 'adaptive' ? 'Adaptive (Calibrated)' : 'Standard',
-            type: 'Concept Evaluation',
-          });
-          return;
-        }
-      } catch (err) {
-        console.warn('Practice generation backend call, using responsive fallback:', err);
+      } else {
+        showToast('No practice questions available for this course yet. Please index curriculum materials first.');
       }
-    }
-
-    // Fallback simulation if no concepts are indexed yet or offline
-    if (mode === 'adaptive') {
-      setActiveSession({
-        title: `Adaptive Practice: ${practiceData.adaptivePractice.headline}`,
-        topic: practiceData.adaptivePractice.topic,
-        questionCount: practiceData.adaptivePractice.questionCount,
-        estimatedMinutes: practiceData.adaptivePractice.estimatedMinutes,
-        difficulty: 'Adaptive (Calibrated)',
-        type: 'Targeted Conceptual & Trace',
-      });
-    } else if (mode === 'quick') {
-      setActiveSession({
-        title: 'Quick Practice: Mixed Topics',
-        topic: 'Arrays, Linked Lists & Trees',
-        questionCount: practiceData.quickPractice.questionCount,
-        estimatedMinutes: practiceData.quickPractice.estimatedMinutes,
-        difficulty: 'Standard',
-        type: 'Mixed Rapid Questions',
-      });
-    } else if (mode === 'mock-test') {
-      setActiveSession({
-        title: `Comprehensive Mock Test: ${courseName}`,
-        topic: 'Full Course Syllabus',
-        questionCount: 15,
-        estimatedMinutes: 25,
-        difficulty: 'Exam Level',
-        type: 'Timed Multi-format',
-      });
+    } catch (err) {
+      console.warn('Practice generation backend call failed:', err);
+      showToast(err?.response?.data?.detail || 'Unable to generate practice session. Ensure course curriculum is indexed.');
     }
   };
 
   const handleStartCustomPractice = async (config) => {
     setIsCustomizeOpen(false);
+    if (!courseId) {
+      showToast('Please select a course to practice.');
+      return;
+    }
     showToast('Configuring custom practice...');
 
-    if (courseId) {
-      try {
-        const session = await practiceApi.generatePractice(courseId, {
-          mode: 'adaptive',
-          topic_id: config.topic !== 'all' ? config.topic : undefined,
-          num_questions: config.count || 5,
+    try {
+      const session = await practiceApi.generatePractice(courseId, {
+        mode: 'adaptive',
+        topic_id: config.topic !== 'all' ? config.topic : undefined,
+        num_questions: config.count || 5,
+        difficulty: config.difficulty,
+      });
+
+      if (session && session.questions && session.questions.length > 0) {
+        setActiveSession({
+          courseId,
+          assessmentId: session.assessment_id,
+          attemptId: session.attempt_id,
+          title: `Custom Practice: ${config.topic.toUpperCase()}`,
+          topic: config.topic === 'all' ? 'All Course Topics' : config.topic,
+          questionCount: session.questions.length,
+          questions: session.questions,
+          estimatedMinutes: Math.round(session.questions.length * 1.6),
           difficulty: config.difficulty,
+          type: `${config.type.toUpperCase()} Format`,
         });
-
-        if (session && session.questions && session.questions.length > 0) {
-          setActiveSession({
-            courseId,
-            assessmentId: session.assessment_id,
-            attemptId: session.attempt_id,
-            title: `Custom Practice: ${config.topic.toUpperCase()}`,
-            topic: config.topic === 'all' ? 'All Course Topics' : config.topic,
-            questionCount: session.questions.length,
-            questions: session.questions,
-            estimatedMinutes: Math.round(session.questions.length * 1.6),
-            difficulty: config.difficulty,
-            type: `${config.type.toUpperCase()} Format`,
-          });
-          return;
-        }
-      } catch (err) {
-        console.warn('Custom practice generation fallback:', err);
+      } else {
+        showToast('No custom practice questions could be generated for the selected topic.');
       }
+    } catch (err) {
+      console.warn('Custom practice generation error:', err);
+      showToast(err?.response?.data?.detail || 'Unable to generate custom practice session.');
     }
-
-    setActiveSession({
-      title: `Custom Practice: ${config.topic.toUpperCase()}`,
-      topic: config.topic === 'all' ? 'All Course Topics' : config.topic,
-      questionCount: config.count,
-      estimatedMinutes: Math.round(config.count * 1.6),
-      difficulty: config.difficulty,
-      type: `${config.type.toUpperCase()} Format`,
-    });
   };
 
   return (
@@ -198,7 +192,7 @@ export default function CoursePracticePage({
 
       {/* 4. Recent Practice History */}
       <RecentPractice
-        history={practiceData.recentHistory}
+        sessions={practiceData.recentSessions || []}
         onReviewSession={(session) => {
           showToast(`Opening review for ${session.title}...`);
         }}

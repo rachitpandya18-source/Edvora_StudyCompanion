@@ -5,25 +5,24 @@ import OutsideMaterialNotice from './OutsideMaterialNotice';
 import FollowUpActions from './FollowUpActions';
 import TutorComposer from './TutorComposer';
 import tutorApi from '../../api/tutorApi';
-import {
-
-  defaultTutorSources,
-  initialTutorMessages,
-  generalKnowledgeAnswer,
-  courseOnlyAnswer,
-} from '../../data/mockTutorData';
-
-/**
- * CourseTutorView
- * Complete two-pane interactive workspace for the Edvora Course Tutor.
- */
 export default function CourseTutorView({
   user,
   courseId,
-  courseName = 'Data Structures & Algorithms',
+  courseName = 'Course Overview',
 }) {
-  const [sources, setSources] = useState(defaultTutorSources);
-  const [messages, setMessages] = useState(initialTutorMessages);
+  const [sources, setSources] = useState([]);
+  const [messages, setMessages] = useState([
+    {
+      id: 'welcome-msg',
+      sender: 'tutor',
+      time: 'Just now',
+      isGrounded: true,
+      lead: `Hello! I am your AI study companion for ${courseName}. Ask me anything about your course materials or select a topic to begin studying.`,
+      text: `Hello! I am your AI study companion for ${courseName}. Ask me anything about your course materials or select a topic to begin studying.`,
+      citations: [],
+      sourcesSummary: [],
+    },
+  ]);
   const [currentThreadId, setCurrentThreadId] = useState(null);
   const [activeSource, setActiveSource] = useState(2); // Default to Slide 18
   const [isSourcesOpen, setIsSourcesOpen] = useState(true);
@@ -175,81 +174,45 @@ export default function CourseTutorView({
         }, 100);
         return;
       } catch (err) {
-        console.warn('Live tutor query failed, using responsive fallback:', err);
+        console.warn('Live tutor query failed:', err);
+        const errorTutorMsg = {
+          id: `msg-${Date.now() + 1}`,
+          sender: 'tutor',
+          time: 'Just now',
+          isGrounded: false,
+          lead: err?.response?.data?.detail || 'I encountered an issue connecting to the tutor service. Please ensure your course materials are indexed and try again.',
+          text: err?.response?.data?.detail || 'I encountered an issue connecting to the tutor service. Please ensure your course materials are indexed and try again.',
+          citations: [],
+          sourcesSummary: [],
+        };
+        setMessages((prev) => [...prev, errorTutorMsg]);
+        setIsTyping(false);
+        setTimeout(() => {
+          chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+        return;
       }
+    } else {
+      const notReadyMsg = {
+        id: `msg-${Date.now() + 1}`,
+        sender: 'tutor',
+        time: 'Just now',
+        isGrounded: false,
+        lead: 'Tutor session is initializing. Please wait a moment and try again.',
+        text: 'Tutor session is initializing. Please wait a moment and try again.',
+        citations: [],
+        sourcesSummary: [],
+      };
+      setMessages((prev) => [...prev, notReadyMsg]);
+      setIsTyping(false);
+      setTimeout(() => {
+        chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     }
-
-    // Fallback response if offline or cold start
-    const simulatedTutorMsg = {
-      id: `msg-${Date.now() + 1}`,
-      sender: 'tutor',
-      time: 'Just now',
-      isGrounded: true,
-      lead: `Based on your course materials for ${courseName}, here is how this concept works:`,
-      leadCitation: 1,
-      stepsHeading: 'Key points from lecture slides:',
-      steps: [
-        {
-          num: 1,
-          title: 'Core invariant check',
-          desc: 'Balance factor strictly maintained between -1, 0, and +1 after every insert or delete operation.',
-          citation: 1,
-        },
-        {
-          num: 2,
-          title: 'Subtree height rebalancing',
-          desc: 'Apply appropriate rotation vectors to preserve logarithmic height O(log n).',
-          citation: 2,
-        },
-      ],
-      sourcesSummary: [
-        { type: 'PDF', num: 1, label: 'Trees.pdf · P.42', sourceId: 'source-1' },
-        { type: 'PPT', num: 2, label: 'Lecture_05_AVL.pptx · Slide 18', sourceId: 'source-2' },
-      ],
-    };
-
-    setMessages((prev) => [...prev, simulatedTutorMsg]);
-    setIsTyping(false);
-    setTimeout(() => {
-      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
   };
 
-
-  const handleFollowUpAction = (actionId, label) => {
-    const studentFollowUp = {
-      id: `fu-${Date.now()}`,
-      sender: 'student',
-      time: 'Just now',
-      text: label,
-    };
-
-    let replyText = '';
-    if (actionId === 'simpler') {
-      replyText =
-        'In simpler terms: A single rotation only fixes a straight line imbalance (like Left-Left). When the tree has a zigzag bend (Left-Right), you must first straighten the bend into a line, then rotate the whole branch down.';
-    } else if (actionId === 'example') {
-      replyText =
-        'Example: Suppose we have nodes 20 and 10, then insert 15. Node 10 has right child 15 (a zigzag). We first left-rotate 10 and 15 so that 10 is the left child of 15. Now 20 -> 15 -> 10 is a straight line, and a right rotation on 20 puts 15 at the top with children 10 and 20!';
-    } else if (actionId === 'stepbystep') {
-      replyText =
-        'Step 1: Identify imbalance: BF(Parent) = +2 and BF(Left Child) = -1.\nStep 2: Perform Left-Rotation on Left Child.\nStep 3: Update balance factors.\nStep 4: Perform Right-Rotation on Parent.\nStep 5: Verify tree height invariant restored.';
-    } else {
-      replyText =
-        'Quick check: In an AVL tree with root node 30, left child 20, and node 25 just inserted: what rotation sequence is required to restore balance?';
-    }
-
-    const tutorFollowUp = {
-      id: `fu-ans-${Date.now()}`,
-      sender: 'tutor-followup',
-      time: 'Just now',
-      text: replyText,
-    };
-
-    setMessages((prev) => [...prev, studentFollowUp, tutorFollowUp]);
-    setTimeout(() => {
-      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
+  const handleFollowUpAction = (_actionId, label) => {
+    handleSendMessage(label);
   };
 
   const handleAnswerGenerally = () => {
@@ -297,11 +260,7 @@ export default function CourseTutorView({
                   auto_awesome
                 </span>
                 <span className="text-xs text-[#fafafa] font-medium truncate">
-                  Current focus: AVL Trees
-                </span>
-                <span className="text-[#a1a1aa]">·</span>
-                <span className="text-xs font-mono font-semibold text-amber-300">
-                  43% mastery
+                  Current focus: {courseName}
                 </span>
               </div>
 
@@ -351,8 +310,8 @@ export default function CourseTutorView({
                 );
               }
 
-              // Tutor Grounded Response 1
-              if (msg.sender === 'tutor' && msg.isGrounded) {
+              // Tutor Response
+              if (msg.sender === 'tutor') {
                 return (
                   <div key={msg.id} className="flex items-start gap-3.5 max-w-3xl">
                     <div className="w-8 h-8 rounded-full bg-[#a78bfa]/20 border border-[#a78bfa]/50 flex items-center justify-center text-[#a78bfa] shrink-0 mt-0.5">
@@ -362,8 +321,8 @@ export default function CourseTutorView({
                     <div className="flex-1 space-y-4">
                       {/* Main Answer Bubble */}
                       <div className="bg-[#121215] border border-[#27272a] rounded-2xl rounded-tl-sm p-5 space-y-4 text-[#fafafa] text-[15px] leading-relaxed shadow-sm">
-                        <p className="text-[#fafafa] text-[15px] leading-relaxed">
-                          {msg.lead}{' '}
+                        <p className="text-[#fafafa] text-[15px] leading-relaxed whitespace-pre-wrap">
+                          {msg.lead || msg.text}{' '}
                           {msg.leadCitation && (
                             <Citation
                               number={msg.leadCitation}

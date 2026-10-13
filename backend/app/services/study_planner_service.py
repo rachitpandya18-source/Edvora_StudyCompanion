@@ -24,9 +24,14 @@ WEAK_THRESHOLD = 0.50         # Concept needs immediate revision
 RETENTION_DECAY_DAYS = 7      # Days without practice before suggesting retention refresh
 
 
-def verify_course_exists(db: Session, course_id: str) -> Course:
+def verify_course_exists(db: Session, course_id: str, student_id: Optional[str] = None) -> Course:
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Course '{course_id}' not found."
+        )
+    if student_id and course.owner_id is not None and course.owner_id != student_id:
         raise HTTPException(
             status_code=404,
             detail=f"Course '{course_id}' not found."
@@ -43,7 +48,7 @@ def calculate_study_plan_data(
     Core planning engine: evaluates prerequisite DAG readiness,
     computes multi-factor priority scores, and synthesizes study plans.
     """
-    course = verify_course_exists(db, course_id)
+    course = verify_course_exists(db, course_id, student_id=student_id)
 
     # 1. Fetch all topics and concepts for this course in order
     topics = (

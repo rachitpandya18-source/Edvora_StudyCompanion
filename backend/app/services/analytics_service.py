@@ -376,7 +376,7 @@ def get_topic_analytics_detail(
     """
     Computes in-depth concept breakdown for a specific topic.
     """
-    verify_course_exists(db, course_id)
+    verify_course_exists(db, course_id, learner_id=learner_id)
     topic = verify_topic_in_course(db, course_id, topic_id)
 
     # Fetch concepts for this topic
@@ -481,7 +481,7 @@ def get_learner_velocity_trends(
             detail=f"Invalid parameter 'days': must be between 1 and 365 (got {days})."
         )
 
-    verify_course_exists(db, course_id)
+    verify_course_exists(db, course_id, learner_id=learner_id)
 
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(days=days)

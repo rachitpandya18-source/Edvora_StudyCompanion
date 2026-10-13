@@ -199,7 +199,7 @@ export default function CourseProgressPage({
             onStartPractice={handleStartAdaptivePractice}
             onAskTutor={handleAskTutor}
           />
-          <RecentProgress activities={progressData.recentEvents} />
+          <RecentProgress events={progressData.recentEvents || []} />
         </div>
       </div>
     </div>

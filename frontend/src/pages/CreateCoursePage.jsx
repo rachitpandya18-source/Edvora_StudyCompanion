@@ -3,45 +3,17 @@ import AppLayout from '../components/layout/AppLayout';
 import MaterialDropzone from '../components/course/MaterialDropzone';
 import SelectedMaterialList from '../components/course/SelectedMaterialList';
 import coursesApi from '../api/coursesApi';
-import curriculumApi from '../api/curriculumApi';
-import { mockStudentProfile, mockCourses } from '../data/mockDashboardData';
-
-
-const INITIAL_MATERIALS = [
-  {
-    id: 'mat-1',
-    name: 'Algorithms_and_Data_Structures_4thEd.pdf',
-    type: 'pdf',
-    sizeText: 'PDF · 48 pages · 14.2 MB',
-    status: 'Ready',
-  },
-  {
-    id: 'mat-2',
-    name: 'Lecture_05_AVL_Trees.pptx',
-    type: 'pptx',
-    sizeText: 'PPTX · 32 slides · 8.4 MB',
-    status: 'Ready',
-  },
-  {
-    id: 'mat-3',
-    name: 'Lecture_05_Live_Recording.mp4',
-    type: 'video',
-    sizeText: 'Video · 52 min · 240 MB',
-    status: 'Processing...',
-  },
-];
+import { mockStudentProfile } from '../data/mockDashboardData';
 
 export default function CreateCoursePage({
   user = mockStudentProfile,
-  recentCourses = mockCourses,
+  recentCourses = [],
   onBackToDashboard,
   onCourseCreated,
 }) {
-  const [courseName, setCourseName] = useState('Data Structures & Algorithms');
-  const [description, setDescription] = useState(
-    'Core concepts of asymptotic complexity, trees, heaps, graphs, balanced search trees, and dynamic programming applications.'
-  );
-  const [materials, setMaterials] = useState(INITIAL_MATERIALS);
+  const [courseName, setCourseName] = useState('');
+  const [description, setDescription] = useState('');
+  const [materials, setMaterials] = useState([]);
   const [nameError, setNameError] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
@@ -115,14 +87,6 @@ export default function CreateCoursePage({
               console.warn(`File upload error for ${file.name}:`, upErr);
             }
           }
-        }
-
-        // Trigger automatic curriculum generation from uploaded materials
-        try {
-          showToast('Extracting knowledge graph & generating curriculum...');
-          await curriculumApi.generateCurriculum(createdCourse.id, { mode: 'replace' });
-        } catch (genErr) {
-          console.warn('Initial curriculum generation warning:', genErr);
         }
       }
 

@@ -13,7 +13,6 @@ import CourseMaterialsPage from './CourseMaterialsPage';
 import CourseProgressPage from './CourseProgressPage';
 import curriculumApi from '../api/curriculumApi';
 import analyticsApi from '../api/analyticsApi';
-import { defaultCourseOverviewData } from '../data/mockCourseOverviewData';
 
 /**
  * CourseWorkspacePage
@@ -131,10 +130,9 @@ export default function CourseWorkspacePage({
     }
   };
 
-  // Merge default data with real backend attributes
+  // Construct truthful courseData from real backend attributes
   const courseData = {
-    ...defaultCourseOverviewData,
-    courseName: courseName || defaultCourseOverviewData.courseName,
+    courseName: courseName || 'Course Overview',
     topics: liveTopics,
     mastery: liveOverview ? Math.round(liveOverview.overall_mastery * 100) : 0,
     studyNext: liveStudyNext || {
@@ -145,6 +143,16 @@ export default function CourseWorkspacePage({
       reason: 'No prerequisite mastery traced yet.',
       estimatedMinutes: 5,
     },
+    learningMap: {
+      nodes: liveTopics.map((t) => ({
+        id: t.id,
+        title: t.name,
+        status: t.variant,
+        note: t.status,
+      })),
+      footnote: 'Visualizing curriculum topics in prerequisite progression.',
+    },
+    recentActivity: [],
   };
 
   const handleGlobalNav = (navId, extraData) => {
@@ -289,7 +297,14 @@ export default function CourseWorkspacePage({
         <CourseHeader
           courseName={courseData.courseName}
           mastery={courseData.mastery}
-          weakestTopic={activeSection === 'practice' ? { name: 'AVL Trees', mastery: 43 } : null}
+          weakestTopic={
+            liveOverview?.weakest_topic
+              ? {
+                  name: liveOverview.weakest_topic.title || liveOverview.weakest_topic.name,
+                  mastery: Math.round(liveOverview.weakest_topic.mastery * 100),
+                }
+              : null
+          }
           onBack={onBackToDashboard}
         />
 

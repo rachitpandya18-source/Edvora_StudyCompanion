@@ -102,19 +102,7 @@ export default function AuthPage({
 
 
   const handleGoogleAuth = () => {
-    setIsSubmitting(true);
-    setErrorMessage(null);
-    setStatusMessage('Connecting with Google...');
-
-    setTimeout(() => {
-      setStatusMessage('Authenticated via Google. Entering Edvora...');
-      setTimeout(() => {
-        setIsSubmitting(false);
-        if (onAuthSuccess) {
-          onAuthSuccess({ email: 'student@university.edu', name: 'Student' });
-        }
-      }, 700);
-    }, 800);
+    setErrorMessage('Google Sign-In is coming soon. Please use email and password to sign in or create an account.');
   };
 
   return (

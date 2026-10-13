@@ -3,10 +3,27 @@
  * Uses standard native fetch, attaches auth tokens, handles errors consistently.
  */
 
-const API_BASE_URL = (
-  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) ||
-  'http://localhost:8000'
-).replace(/\/+$/, '');
+function resolveApiBaseUrl() {
+  const envUrl = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL;
+  if (envUrl && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, '');
+  }
+  // If no explicit VITE_API_BASE_URL was configured at build time,
+  // warn if running on a non-loopback host where localhost:8000 would target the client device.
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+    const host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1' && host !== '0.0.0.0') {
+      console.warn(
+        `[Edvora API Client] VITE_API_BASE_URL was not set at build time and defaulted to 'http://localhost:8000'. ` +
+        `API requests from client origin '${window.location.origin}' will fail unless backend is reachable on client loopback. ` +
+        `Set VITE_API_BASE_URL to your backend host.`
+      );
+    }
+  }
+  return 'http://localhost:8000';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 const TOKEN_KEY = 'edvora_auth_token';
 const USER_KEY = 'edvora_user';
 

@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch } from './client.js';
 
 export async function getCurriculum(courseId) {
   return await apiFetch(`/courses/${courseId}/curriculum`, {
@@ -12,13 +12,13 @@ export async function getCurriculumStatus(courseId) {
   });
 }
 
-export async function generateCurriculum(courseId, { mode = 'replace', max_topics = 8, max_concepts_per_topic = 6 } = {}) {
+export async function generateCurriculum(courseId, { mode = 'replace', max_topics = 5, concepts_per_topic = 4 } = {}) {
   return await apiFetch(`/courses/${courseId}/curriculum/generate`, {
     method: 'POST',
     body: {
       mode,
       max_topics,
-      max_concepts_per_topic,
+      concepts_per_topic,
     },
   });
 }
