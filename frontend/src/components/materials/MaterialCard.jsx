@@ -7,8 +7,17 @@ import React from 'react';
 export default function MaterialCard({
   material,
   onOpenPreview,
+  onPreview,
   onRemove,
 }) {
+  const handleOpen = () => {
+    if (onOpenPreview) {
+      onOpenPreview(material);
+    } else if (onPreview) {
+      onPreview(material);
+    }
+  };
+
   const {
     id,
     type,
@@ -118,7 +127,7 @@ export default function MaterialCard({
         ) : (
           <button
             type="button"
-            onClick={() => onOpenPreview?.(material)}
+            onClick={handleOpen}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-[#18181b] hover:bg-[#202026] border border-[#27272a] hover:border-[#a78bfa]/50 rounded-lg transition-colors cursor-pointer"
           >
             <span>{actionLabel || 'Open material'}</span>

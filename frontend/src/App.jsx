@@ -4,7 +4,8 @@ import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import CreateCoursePage from './pages/CreateCoursePage';
 import CourseWorkspacePage from './pages/CourseWorkspacePage';
-import { getStoredToken, getStoredUser, clearAuthSession } from './api/client';
+import SettingsPage from './pages/SettingsPage';
+import { getStoredToken, getStoredUser, clearAuthSession, normalizeUser } from './api/client';
 import authApi from './api/authApi';
 import coursesApi from './api/coursesApi';
 
@@ -16,6 +17,7 @@ function App() {
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [activeCourseId, setActiveCourseId] = useState(null);
   const [activeCourseTitle, setActiveCourseTitle] = useState(null);
+  const [activeSection, setActiveSection] = useState('overview');
 
   const fetchCourses = useCallback(async () => {
     setIsLoadingCourses(true);
@@ -87,7 +89,7 @@ function App() {
   };
 
   const handleAuthSuccess = (user) => {
-    setCurrentUser(user || { name: 'Alex Rivera', initials: 'AR', program: 'Computer Science' });
+    setCurrentUser(normalizeUser(user));
     setCurrentView('dashboard');
     fetchCourses();
   };
@@ -98,8 +100,9 @@ function App() {
     setCurrentView('landing');
   };
 
-  const handleNavigateToCourse = (courseId, _tab = 'overview') => {
+  const handleNavigateToCourse = (courseId, tab = 'overview') => {
     setActiveCourseId(courseId);
+    setActiveSection(tab);
     const found = courses.find((c) => c.id === courseId);
     if (found) {
       setActiveCourseTitle(found.title);
@@ -113,8 +116,24 @@ function App() {
       const courseTitle = createdCourse?.title || createdCourse?.courseName || 'New Course';
       setActiveCourseId(courseId);
       setActiveCourseTitle(courseTitle);
+      setActiveSection('overview');
       setCurrentView('workspace');
     });
+  };
+
+  const handleGlobalNavigate = (navId, extraData) => {
+    if (navId === 'settings') {
+      setCurrentView('settings');
+    } else if (navId === 'create-course') {
+      setCurrentView('create-course');
+    } else if (navId === 'course' && extraData?.id) {
+      setActiveCourseId(extraData.id);
+      setActiveCourseTitle(extraData.title);
+      setActiveSection(extraData.section || 'overview');
+      setCurrentView('workspace');
+    } else if (navId === 'home') {
+      setCurrentView('dashboard');
+    }
   };
 
   if (currentView === 'auth') {
@@ -127,17 +146,24 @@ function App() {
     );
   }
 
+  const safeUser = normalizeUser(currentUser);
+
   if (currentView === 'dashboard') {
     return (
       <DashboardPage
-        user={currentUser || { name: 'Alex Rivera', initials: 'AR', program: 'Computer Science' }}
+        user={safeUser}
         courses={courses}
         isLoadingCourses={isLoadingCourses}
+        onNavigate={handleGlobalNavigate}
         onNavigateToCourse={handleNavigateToCourse}
         onCreateCourse={() => setCurrentView('create-course')}
         onLogout={handleLogout}
         onEnterWorkspace={(courseId) => {
-          const targetId = courseId || courses[0]?.id || 'cs201';
+          const targetId = courseId || courses[0]?.id;
+          if (!targetId) {
+            setCurrentView('create-course');
+            return;
+          }
           setActiveCourseId(targetId);
           const found = courses.find((c) => c.id === targetId);
           if (found) {
@@ -149,10 +175,22 @@ function App() {
     );
   }
 
+  if (currentView === 'settings') {
+    return (
+      <SettingsPage
+        user={safeUser}
+        recentCourses={courses}
+        onNavigate={handleGlobalNavigate}
+        onBackToDashboard={() => setCurrentView('dashboard')}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   if (currentView === 'create-course') {
     return (
       <CreateCoursePage
-        user={currentUser || { name: 'Alex Rivera', initials: 'AR', program: 'Computer Science' }}
+        user={safeUser}
         recentCourses={courses}
         onBackToDashboard={() => setCurrentView('dashboard')}
         onCourseCreated={handleCourseCreated}
@@ -163,23 +201,14 @@ function App() {
   if (currentView === 'workspace') {
     return (
       <CourseWorkspacePage
-        user={currentUser || { name: 'Alex Rivera', initials: 'AR', program: 'Computer Science' }}
+        user={safeUser}
         courseId={activeCourseId}
         courseName={activeCourseTitle}
         recentCourses={courses}
+        initialSection={activeSection}
         onBackToDashboard={() => setCurrentView('dashboard')}
         onCreateCourse={() => setCurrentView('create-course')}
-        onNavigate={(navId, extraData) => {
-          if (navId === 'create-course') {
-            setCurrentView('create-course');
-          } else if (navId === 'course' && extraData?.id) {
-            setActiveCourseId(extraData.id);
-            setActiveCourseTitle(extraData.title);
-            setCurrentView('workspace');
-          } else if (navId === 'home') {
-            setCurrentView('dashboard');
-          }
-        }}
+        onNavigate={handleGlobalNavigate}
       />
     );
   }

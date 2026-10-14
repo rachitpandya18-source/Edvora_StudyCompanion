@@ -7,6 +7,7 @@ import CustomizePracticeModal from '../components/practice/CustomizePracticeModa
 import RecentPractice from '../components/practice/RecentPractice';
 import PracticeSessionModal from '../components/practice/PracticeSessionModal';
 import practiceApi from '../api/practiceApi';
+import curriculumApi from '../api/curriculumApi';
 
 /**
  * CoursePracticePage
@@ -44,6 +45,7 @@ export default function CoursePracticePage({
     },
     recentSessions: [],
   });
+  const [courseTopics, setCourseTopics] = useState([]);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [activeSession, setActiveSession] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
@@ -53,10 +55,61 @@ export default function CoursePracticePage({
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  const loadRecentSessions = (cId) => {
+    if (!cId) return;
+    practiceApi.getRecentAttempts(cId, 5)
+      .then((attempts) => {
+        if (Array.isArray(attempts)) {
+          const mapped = attempts.map((att) => {
+            const rawScore = att.score ?? 0;
+            const maxScore = att.max_score ?? att.answers?.length ?? 1;
+            const pct = Math.min(
+              100,
+              Math.max(
+                0,
+                att.percentage !== undefined && att.percentage !== null
+                  ? Math.round(att.percentage)
+                  : Math.round((rawScore / (maxScore || 1)) * 100)
+              )
+            );
+            const variant = pct >= 80 ? 'strong' : pct >= 50 ? 'developing' : 'attention';
+            const icon = pct >= 80 ? 'check_circle' : pct >= 50 ? 'bolt' : 'school';
+            const iconColor = pct >= 80 ? 'text-[#34d399]' : pct >= 50 ? 'text-[#a78bfa]' : 'text-amber-300';
+            const dateStr = att.submitted_at || att.created_at;
+            const time = dateStr ? new Date(dateStr).toLocaleDateString() : 'Recent';
+
+            return {
+              id: att.id,
+              rawAttempt: att,
+              title: att.assessment_title || 'Practice Assessment',
+              subtitle: `${att.answers?.length || 0} questions evaluated`,
+              variant,
+              icon,
+              iconColor,
+              score: `${pct}%`,
+              time,
+            };
+          });
+          setPracticeData((prev) => ({
+            ...prev,
+            recentSessions: mapped,
+          }));
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to load recent practice sessions:', err);
+      });
+  };
+
   useEffect(() => {
     if (!courseId) return;
+    loadRecentSessions(courseId);
+
     practiceApi.getPracticeOptions(courseId)
       .then((opts) => {
+        if (opts && Array.isArray(opts.topics) && opts.topics.length > 0) {
+          setCourseTopics((prev) => (prev.length > 0 ? prev : opts.topics));
+        }
         if (opts && opts.recommended_focus_concept) {
           setPracticeData((prev) => ({
             ...prev,
@@ -67,6 +120,14 @@ export default function CoursePracticePage({
               reason: opts.recommended_focus_concept.reason,
             },
           }));
+        }
+      })
+      .catch(() => {});
+
+    curriculumApi.getCurriculum(courseId)
+      .then((curr) => {
+        if (curr?.topics && Array.isArray(curr.topics) && curr.topics.length > 0) {
+          setCourseTopics(curr.topics);
         }
       })
       .catch(() => {});
@@ -108,45 +169,65 @@ export default function CoursePracticePage({
       }
     } catch (err) {
       console.warn('Practice generation backend call failed:', err);
-      showToast(err?.response?.data?.detail || 'Unable to generate practice session. Ensure course curriculum is indexed.');
+      showToast(err?.data?.detail || err?.message || 'Unable to generate practice session. Ensure course curriculum is indexed.');
     }
   };
 
   const handleStartCustomPractice = async (config) => {
-    setIsCustomizeOpen(false);
     if (!courseId) {
       showToast('Please select a course to practice.');
       return;
     }
     showToast('Configuring custom practice...');
 
+    const diffMap = {
+      adaptive: 'medium',
+      foundational: 'easy',
+      standard: 'medium',
+      challenging: 'hard',
+    };
+    const mappedDifficulty = diffMap[config.difficulty] || 'medium';
+    const questionTypes = config.type && config.type !== 'mixed' ? [config.type] : undefined;
+    const topicId = config.topic && config.topic !== 'all' ? config.topic : undefined;
+    const count = Number(config.count) || 5;
+
+    // Resolve human-readable topic title
+    const selectedTopicObj = courseTopics.find((t) => t.id === config.topic);
+    const displayTopicTitle = selectedTopicObj ? selectedTopicObj.title : (config.topic === 'all' ? 'All Course Topics' : config.topic);
+
     try {
       const session = await practiceApi.generatePractice(courseId, {
         mode: 'adaptive',
-        topic_id: config.topic !== 'all' ? config.topic : undefined,
-        num_questions: config.count || 5,
-        difficulty: config.difficulty,
+        topic_id: topicId,
+        question_count: count,
+        question_types: questionTypes,
+        difficulty: mappedDifficulty,
       });
 
       if (session && session.questions && session.questions.length > 0) {
+        setIsCustomizeOpen(false);
         setActiveSession({
           courseId,
           assessmentId: session.assessment_id,
           attemptId: session.attempt_id,
-          title: `Custom Practice: ${config.topic.toUpperCase()}`,
-          topic: config.topic === 'all' ? 'All Course Topics' : config.topic,
+          title: `Custom Practice: ${displayTopicTitle}`,
+          topic: displayTopicTitle,
           questionCount: session.questions.length,
           questions: session.questions,
           estimatedMinutes: Math.round(session.questions.length * 1.6),
-          difficulty: config.difficulty,
-          type: `${config.type.toUpperCase()} Format`,
+          difficulty: config.difficulty === 'adaptive' ? 'Adaptive (Calibrated)' : config.difficulty.charAt(0).toUpperCase() + config.difficulty.slice(1),
+          type: config.type === 'mixed' ? 'Mixed Types' : `${config.type.replace('_', ' ').toUpperCase()} Format`,
         });
       } else {
-        showToast('No custom practice questions could be generated for the selected topic.');
+        const errorMsg = 'No custom practice questions could be generated for the selected topic.';
+        showToast(errorMsg);
+        throw new Error(errorMsg);
       }
     } catch (err) {
       console.warn('Custom practice generation error:', err);
-      showToast(err?.response?.data?.detail || 'Unable to generate custom practice session.');
+      const detail = err?.data?.detail || err?.response?.data?.detail || err?.message || 'Unable to generate custom practice session.';
+      showToast(detail);
+      throw err;
     }
   };
 
@@ -182,19 +263,51 @@ export default function CoursePracticePage({
           onStartPractice={handleStartPractice}
         />
         <MockTestCard
+          courseName={courseName}
           mockData={practiceData.mockTest}
           onStartPractice={handleStartPractice}
         />
       </section>
 
       {/* 3. Custom Practice CTA Strip */}
-      <CustomizePractice onOpenModal={() => setIsCustomizeOpen(true)} />
+      <CustomizePractice
+        onOpenCustomize={() => setIsCustomizeOpen(true)}
+        onOpenModal={() => setIsCustomizeOpen(true)}
+      />
 
       {/* 4. Recent Practice History */}
       <RecentPractice
         sessions={practiceData.recentSessions || []}
         onReviewSession={(session) => {
-          showToast(`Opening review for ${session.title}...`);
+          if (session?.rawAttempt?.answers && session.rawAttempt.answers.length > 0) {
+            const initialAns = {};
+            session.rawAttempt.answers.forEach((a) => {
+              if (a.student_answer) initialAns[a.question_id] = a.student_answer;
+            });
+            setActiveSession({
+              courseId,
+              assessmentId: session.rawAttempt.assessment_id,
+              attemptId: session.rawAttempt.id,
+              title: `Review: ${session.title}`,
+              topic: session.title,
+              questionCount: session.rawAttempt.answers.length,
+              questions: session.rawAttempt.answers.map((a) => ({
+                id: a.question_id,
+                prompt: a.question_prompt || 'Practice Question',
+                type: a.question_type || 'Multiple Choice',
+                options: (a.options_json || [a.student_answer, a.correct_answer].filter(Boolean)).map((opt) =>
+                  typeof opt === 'string' ? { id: opt, text: opt } : opt
+                ),
+                concept_title: a.concept_title || a.concept_name,
+                concept_name: a.concept_name,
+                explanation: a.explanation,
+              })),
+              initialEvaluation: session.rawAttempt,
+              initialAnswers: initialAns,
+            });
+          } else {
+            showToast(`Opening review for ${session.title}...`);
+          }
         }}
       />
 
@@ -204,6 +317,7 @@ export default function CoursePracticePage({
           isOpen={isCustomizeOpen}
           onClose={() => setIsCustomizeOpen(false)}
           onStartCustomPractice={handleStartCustomPractice}
+          topics={courseTopics}
         />
       )}
 
@@ -214,7 +328,19 @@ export default function CoursePracticePage({
           sessionConfig={activeSession}
           onClose={() => setActiveSession(null)}
           onAttemptCompleted={(result) => {
-            showToast(`Assessment submitted! Score: ${Math.round((result.score ?? 1) * 100)}%`);
+            const rawScore = result.score ?? 0;
+            const maxScore = result.max_score ?? 1;
+            const pct = Math.min(
+              100,
+              Math.max(
+                0,
+                result.percentage !== undefined && result.percentage !== null
+                  ? Math.round(result.percentage)
+                  : Math.round((rawScore / (maxScore || 1)) * 100)
+              )
+            );
+            showToast(`Assessment submitted! Score: ${pct}% (${rawScore}/${maxScore})`);
+            loadRecentSessions(courseId);
           }}
         />
       )}

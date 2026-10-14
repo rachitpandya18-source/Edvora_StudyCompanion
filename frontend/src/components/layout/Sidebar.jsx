@@ -8,9 +8,9 @@ export default function Sidebar({
   mobileOpen = false,
   onCloseMobile,
 }) {
-  const userName = user?.name || 'Alex Rivera';
-  const userInitials = user?.initials || (userName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'AR');
-  const userProgram = user?.program || 'Computer Science';
+  const userName = user?.name || user?.full_name || user?.username || 'Student';
+  const userInitials = user?.initials || (userName.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'ST');
+  const userProgram = user?.program || 'Edvora Scholar';
 
   const handleNavClick = (navId, extraData) => {
     if (onNavigate) {
@@ -196,11 +196,15 @@ export default function Sidebar({
             type="button"
             onClick={() => handleNavClick('settings')}
             title="Settings"
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] text-[#a1a1aa] hover:text-white hover:bg-[#18181c] transition-colors cursor-pointer bg-transparent border-0 ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] transition-colors cursor-pointer border-0 ${
+              activeNav === 'settings'
+                ? 'bg-[#18181c] text-white border border-[#2e2e36]'
+                : 'text-[#a1a1aa] hover:text-white hover:bg-[#18181c] bg-transparent'
+            } ${
               collapsed ? 'justify-center px-1' : ''
             }`}
           >
-            <span className="material-symbols-outlined text-[19px] text-[#71717a]">settings</span>
+            <span className={`material-symbols-outlined text-[19px] ${activeNav === 'settings' ? 'text-[#a78bfa]' : 'text-[#71717a]'}`}>settings</span>
             {!collapsed && <span>Settings</span>}
           </button>
 

@@ -1,8 +1,8 @@
 export const mockStudentProfile = {
-  name: "Alex Rivera",
-  initials: "AR",
-  program: "Computer Science",
-  year: "Class of 2026",
+  name: "Student",
+  initials: "ST",
+  program: "Academic Workspace",
+  year: "Active",
   status: "Active",
 };
 

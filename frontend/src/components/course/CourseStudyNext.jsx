@@ -3,17 +3,23 @@ export default function CourseStudyNext({
   onStartSession,
   onViewTopic,
 }) {
-  const {
-    topic = 'AVL Trees',
-    mastery = 43,
-    statusText = 'Needs attention',
-    whyThis = 'You recently struggled with Left-Right and Right-Left rotations.',
-    recommendedActions = [
-      { id: '1', icon: 'menu_book', title: 'Review AVL rotations' },
-      { id: '2', icon: 'fact_check', title: 'Practice 3 targeted questions', accent: 'success' },
-    ],
-    estimatedTime = '12 min',
-  } = studyNext || {};
+  const topicName = studyNext?.topic && studyNext.topic !== 'No Active Recommendation'
+    ? studyNext.topic
+    : 'Course Concepts';
+
+  const topic = studyNext?.topic || 'Core Curriculum';
+  const mastery = typeof studyNext?.mastery === 'number' ? studyNext.mastery : 0;
+  const statusText = studyNext?.statusText || (mastery > 0 ? `${mastery}% mastery` : 'Recommended');
+  const whyThis = studyNext?.whyThis || studyNext?.reason || studyNext?.headline || 'Identified as the optimal next step based on curriculum prerequisite readiness.';
+  const estimatedTime = studyNext?.estimatedMinutes ? `${studyNext.estimatedMinutes} min` : (studyNext?.estimatedTime || '10 min');
+
+  const defaultActions = [
+    { id: '1', icon: 'menu_book', title: `Review ${topicName} with AI Tutor` },
+    { id: '2', icon: 'fact_check', title: `Practice targeted questions on ${topicName}`, accent: 'success' },
+  ];
+  const recommendedActions = studyNext?.recommendedActions && studyNext.recommendedActions.length > 0
+    ? studyNext.recommendedActions
+    : defaultActions;
 
   return (
     <section className="rounded-xl border border-[#2e2e36] bg-[#121215] p-7 relative overflow-hidden shadow-2xl">

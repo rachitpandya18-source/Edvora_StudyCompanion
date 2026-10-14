@@ -29,12 +29,18 @@ export default function CourseWorkspacePage({
   onNavigate,
 }) {
   const [activeSection, setActiveSection] = useState(initialSection);
+  const [prevInitialSection, setPrevInitialSection] = useState(initialSection);
   const [liveOverview, setLiveOverview] = useState(null);
   const [liveStudyNext, setLiveStudyNext] = useState(null);
   const [liveTopics, setLiveTopics] = useState([]);
   const [hasCurriculum, setHasCurriculum] = useState(true);
   const [isGeneratingCurriculum, setIsGeneratingCurriculum] = useState(false);
   const [curriculumMessage, setCurriculumMessage] = useState(null);
+
+  if (initialSection !== prevInitialSection) {
+    setPrevInitialSection(initialSection);
+    setActiveSection(initialSection);
+  }
 
   // Fetch real curriculum, study-next recommendation, and analytics overview
   useEffect(() => {
@@ -68,13 +74,31 @@ export default function CourseWorkspacePage({
     curriculumApi.getStudyNext(courseId)
       .then((topRec) => {
         if (topRec) {
+          const displayTopic = topRec.concept_name || topRec.topic_title || topRec.concept_title || 'Core Curriculum';
+          const displayRationale = topRec.rationale || topRec.reason || 'Recommended next concept based on prerequisite readiness.';
+          const masteryPct = Math.round((topRec.mastery_probability ?? 0) * 100);
+          const prerequisiteNote = topRec.prerequisite_depth != null
+            ? `Prerequisite depth ${topRec.prerequisite_depth}. Target mastery threshold 85%.`
+            : topRec.unblocked_dependents_count
+            ? `Mastering this unblocks ${topRec.unblocked_dependents_count} dependent concepts in this course.`
+            : 'Core curriculum readiness. Target mastery threshold 85%.';
+
           setLiveStudyNext({
-            topic: topRec.concept_title || topRec.concept_id,
-            headline: topRec.reason || 'Recommended next concept based on prerequisite readiness',
-            readiness: 'Optimal',
+            topic: displayTopic,
+            mastery: masteryPct,
+            statusText: topRec.status_text || 'Recommended',
+            headline: displayRationale,
+            whyThis: `${displayRationale} ${prerequisiteNote}`,
             actionText: 'Start Session',
-            reason: `Prerequisite depth ${topRec.prerequisite_depth}. Target mastery threshold 0.85.`,
+            reason: prerequisiteNote,
             estimatedMinutes: 10,
+            recommendedActions: topRec.recommended_actions?.length
+              ? topRec.recommended_actions.map((act) => ({
+                  id: String(act.step),
+                  icon: act.action_type === 'practice_quiz' ? 'fact_check' : act.action_type === 'ask_tutor' ? 'chat' : 'menu_book',
+                  title: act.title,
+                }))
+              : undefined,
           });
         }
       })

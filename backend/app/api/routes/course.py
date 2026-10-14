@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 
@@ -22,7 +23,7 @@ from app.schemas.source import (
     SourceResponse
 )
 from app.schemas.content_unit import MaterialUploadResponse
-from app.services.ingestion_service import ingest_pdf_to_course
+from app.services.ingestion_service import ingest_pdf_to_course, ingest_material_to_course
 
 router = APIRouter(
     prefix="/courses",
@@ -236,7 +237,7 @@ UPLOAD_BASE_DIR = Path(os.getenv("UPLOAD_DIR", "data/uploads"))
     "/{course_id}/materials/upload",
     response_model=MaterialUploadResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Upload a material PDF to a course and index its content units"
+    summary="Upload a course material (PDF, PPTX, or Video) and index its content units"
 )
 def upload_course_material(
     course_id: str,
@@ -244,19 +245,37 @@ def upload_course_material(
     course: Course = Depends(verify_course_owner),
     db: Session = Depends(get_db)
 ):
-    # 1. Validate PDF format
-    if not file.filename.lower().endswith(".pdf"):
+    if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only PDF files are supported for material upload."
+            detail="Filename cannot be empty."
         )
 
-    # 3. Collision-safe directory path per course
+    filename_lower = file.filename.lower()
+    allowed_exts = {
+        ".pdf": "pdf",
+        ".pptx": "pptx",
+        ".ppt": "pptx",
+        ".mp4": "video",
+        ".mov": "video",
+        ".m4v": "video",
+        ".webm": "video",
+    }
+    ext = Path(filename_lower).suffix
+    if ext not in allowed_exts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Supported material formats: PDF (.pdf), Presentation (.pptx, .ppt), Video (.mp4, .mov, .m4v, .webm)."
+        )
+
+    source_type = allowed_exts[ext]
+
+    # Collision-safe directory path per course
     course_upload_dir = UPLOAD_BASE_DIR / course_id
     course_upload_dir.mkdir(parents=True, exist_ok=True)
     file_path = course_upload_dir / file.filename
 
-    # 4. Save uploaded bytes to disk
+    # Save uploaded bytes to disk
     try:
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
@@ -266,7 +285,7 @@ def upload_course_material(
             detail=f"Failed to save uploaded file: {exc}"
         )
 
-    # 5. Find or create Source record
+    # Find or create Source record
     source = db.query(Source).filter(
         Source.course_id == course_id,
         Source.filename == file.filename
@@ -276,7 +295,7 @@ def upload_course_material(
         source = Source(
             course_id=course_id,
             filename=file.filename,
-            source_type="pdf",
+            source_type=source_type,
             file_path=str(file_path),
             processing_status="processing"
         )
@@ -285,22 +304,24 @@ def upload_course_material(
         db.refresh(source)
     else:
         source.file_path = str(file_path)
+        source.source_type = source_type
         source.processing_status = "processing"
         db.commit()
         db.refresh(source)
 
-    # 6. Run persistent ingestion pipeline
+    # Run persistent ingestion pipeline
     try:
-        result = ingest_pdf_to_course(
+        result = ingest_material_to_course(
             db=db,
             course_id=course_id,
             source_id=source.id,
             file_path=str(file_path),
+            source_type=source_type,
             replace_existing=True
         )
 
         return MaterialUploadResponse(
-            message="PDF uploaded and indexed successfully into course.",
+            message=f"{source_type.upper()} uploaded and indexed successfully into course.",
             course_id=course_id,
             source_id=source.id,
             filename=source.filename,
@@ -317,6 +338,56 @@ def upload_course_material(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process and index PDF: {exc}"
+            detail=f"Failed to process and index material: {exc}"
         )
+
+
+@router.get(
+    "/{course_id}/materials/{source_id}/download",
+    summary="Download or stream a course material file"
+)
+@router.get(
+    "/{course_id}/materials/{source_id}/file",
+    summary="Stream or view a course material file"
+)
+def download_course_material(
+    course_id: str,
+    source_id: str,
+    course: Course = Depends(verify_course_owner),
+    db: Session = Depends(get_db)
+):
+    source = db.query(Source).filter(
+        Source.id == source_id,
+        Source.course_id == course_id
+    ).first()
+    if not source:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Source with ID '{source_id}' not found in course '{course_id}'."
+        )
+
+    file_path = Path(source.file_path) if source.file_path else None
+    if not file_path or not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Material file for '{source.filename}' was not found on server storage."
+        )
+
+    ext = file_path.suffix.lower()
+    media_types = {
+        ".pdf": "application/pdf",
+        ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ".ppt": "application/vnd.ms-powerpoint",
+        ".mp4": "video/mp4",
+        ".mov": "video/quicktime",
+        ".webm": "video/webm",
+        ".m4v": "video/x-m4v",
+    }
+    media_type = media_types.get(ext, "application/octet-stream")
+
+    return FileResponse(
+        path=str(file_path),
+        filename=source.filename,
+        media_type=media_type,
+    )
 

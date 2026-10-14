@@ -6,7 +6,7 @@ import React from 'react';
  * overall course mastery progress, and optional weakest topic badge.
  */
 export default function CourseHeader({
-  courseName = 'Data Structures & Algorithms',
+  courseName = 'Course Overview',
   mastery = 68,
   weakestTopic = null,
   onBack,

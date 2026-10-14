@@ -14,7 +14,7 @@ import curriculumApi from '../api/curriculumApi';
  */
 export default function CourseMaterialsPage({
   courseId,
-  courseName = 'Data Structures & Algorithms',
+  courseName = 'Course Overview',
   onCurriculumGenerated,
 }) {
   const [materials, setMaterials] = useState([]);
@@ -114,19 +114,30 @@ export default function CourseMaterialsPage({
 
     showToast(`Uploading ${newFiles.length} course material(s)...`);
 
+    let successCount = 0;
+    let lastError = null;
+
     for (const fileItem of newFiles) {
       const fileToUpload = fileItem.file || fileItem.rawFile || fileItem;
       if (fileToUpload instanceof File || fileToUpload instanceof Blob) {
         try {
           await coursesApi.uploadMaterial(courseId, fileToUpload);
+          successCount += 1;
         } catch (err) {
           console.warn(`Upload error for ${fileItem.name}:`, err);
+          lastError = err?.response?.data?.detail || err?.message || `Failed to upload ${fileItem.name}`;
         }
       }
     }
 
     await loadSources();
-    showToast('Materials uploaded and indexed successfully into course!');
+    if (lastError && successCount === 0) {
+      showToast(lastError);
+    } else if (lastError) {
+      showToast(`Uploaded ${successCount} file(s). Warning: ${lastError}`);
+    } else {
+      showToast('Materials uploaded and indexed successfully into course!');
+    }
   };
 
   const handleGenerateCurriculum = async () => {
@@ -210,6 +221,7 @@ export default function CourseMaterialsPage({
               key={mat.id}
               material={mat}
               onPreview={(item) => setPreviewMaterial(item)}
+              onOpenPreview={(item) => setPreviewMaterial(item)}
             />
           ))}
         </div>
@@ -227,6 +239,8 @@ export default function CourseMaterialsPage({
       {/* Preview Modal */}
       {previewMaterial && (
         <MaterialPreviewModal
+          isOpen={Boolean(previewMaterial)}
+          courseId={courseId}
           material={previewMaterial}
           onClose={() => setPreviewMaterial(null)}
         />

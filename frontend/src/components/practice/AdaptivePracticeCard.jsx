@@ -13,13 +13,13 @@ export default function AdaptivePracticeCard({
 
   const {
     badge = 'RECOMMENDED · ADAPTIVE PRACTICE',
-    mastery = 43,
-    statusText = 'Needs attention',
-    headline = 'Strengthen AVL Trees',
-    description = 'Your recent answers suggest difficulty with Left-Right and Right-Left rotations.',
+    mastery = 0,
+    statusText = 'Ready',
+    headline = 'Targeted Adaptive Practice',
+    description = 'Strengthen developing concepts with questions calibrated to your current course mastery.',
     questionCount = 5,
     estimatedMinutes = 8,
-    whyThis = 'Edvora selected AVL Trees because your recent answers in the Tutor and Trees assessment showed difficulty resolving zigzag imbalances before balancing the root.',
+    whyThis = 'Edvora adaptive engine selects questions targeting high-priority concepts from your curriculum knowledge graph.',
   } = adaptiveData || {};
 
   return (
