@@ -10,7 +10,7 @@ export default function CourseMasteryCard({ masteryData }) {
     percentage = 68,
     status = 'Developing',
     statusVariant = 'developing',
-    message = "You're making steady progress. AVL Trees needs the most attention.",
+    message = "Study course materials and complete practice sessions to build curriculum mastery.",
   } = masteryData || {};
 
   const getStatusStyles = () => {

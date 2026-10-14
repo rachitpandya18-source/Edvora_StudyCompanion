@@ -10,6 +10,8 @@ class PracticeQuestionItem(BaseModel):
     id: str
     assessment_id: str
     concept_id: Optional[str] = None
+    concept_title: Optional[str] = None
+    concept_name: Optional[str] = None
     question_type: str
     prompt: str
     order_index: int

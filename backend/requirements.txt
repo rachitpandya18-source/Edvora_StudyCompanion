@@ -70,3 +70,4 @@ websockets==16.1.1
 alembic==1.20.0
 psycopg2-binary==2.9.13
 sqlalchemy==2.1.4
+python-pptx>=1.0.2

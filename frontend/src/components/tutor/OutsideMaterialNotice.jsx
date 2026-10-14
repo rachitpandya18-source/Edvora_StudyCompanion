@@ -6,7 +6,7 @@ import React from 'react';
  * Styled with Edvora amber attention accents without looking like an error.
  */
 export default function OutsideMaterialNotice({
-  courseName = 'Data Structures & Algorithms',
+  courseName = 'Course Materials',
   onAnswerGenerally,
   onStayCourseOnly,
 }) {
@@ -25,12 +25,12 @@ export default function OutsideMaterialNotice({
         </div>
 
         <p className="text-xs text-[#a1a1aa] leading-relaxed">
-          I couldn&apos;t find B-Tree database indexing comparisons in the uploaded materials for{' '}
-          <strong className="text-[#fafafa] font-semibold">{courseName}</strong>. This course focuses primarily on in-memory binary search structures (AVL, Red-Black).
+          I couldn&apos;t find specific mentions of this question in the uploaded materials for{' '}
+          <strong className="text-[#fafafa] font-semibold">{courseName}</strong>.
         </p>
 
         <p className="text-xs text-[#fafafa] font-medium">
-          Would you like me to answer using general computer science knowledge, or keep strictly to your course syllabus?
+          Would you like me to answer using general academic knowledge, or keep strictly to your uploaded course syllabus?
         </p>
 
         <div className="flex items-center gap-2 pt-1">

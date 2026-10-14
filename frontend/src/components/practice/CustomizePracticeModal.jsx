@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 /**
  * CustomizePracticeModal
@@ -9,11 +9,26 @@ export default function CustomizePracticeModal({
   isOpen = false,
   onClose,
   onStartCustomPractice,
+  topics: availableTopics = [],
 }) {
   const [selectedType, setSelectedType] = useState('mixed');
   const [selectedTopic, setSelectedTopic] = useState('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState('adaptive');
   const [selectedCount, setSelectedCount] = useState(10);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !isSubmitting) {
+        onClose?.();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose, isSubmitting]);
 
   if (!isOpen) return null;
 
@@ -27,10 +42,10 @@ export default function CustomizePracticeModal({
 
   const topics = [
     { id: 'all', label: 'All Course Topics' },
-    { id: 'avl', label: 'AVL Trees (Needs attention)' },
-    { id: 'trees', label: 'Trees & BST' },
-    { id: 'linked_lists', label: 'Linked Lists' },
-    { id: 'arrays', label: 'Arrays' },
+    ...availableTopics.map((t) => ({
+      id: t.id || t.title || t.name,
+      label: t.title || t.name || t.id,
+    })),
   ];
 
   const difficulties = [
@@ -42,14 +57,27 @@ export default function CustomizePracticeModal({
 
   const counts = [5, 10, 15, 20];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onStartCustomPractice?.({
-      type: selectedType,
-      topic: selectedTopic,
-      difficulty: selectedDifficulty,
-      count: selectedCount,
-    });
+    setErrorMessage(null);
+    setIsSubmitting(true);
+    try {
+      await onStartCustomPractice?.({
+        type: selectedType,
+        topic: selectedTopic,
+        difficulty: selectedDifficulty,
+        count: selectedCount,
+      });
+    } catch (err) {
+      setErrorMessage(
+        err?.data?.detail ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        'Failed to start custom practice.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -57,19 +85,24 @@ export default function CustomizePracticeModal({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/70 backdrop-blur-xs transition-opacity"
-        onClick={onClose}
+        onClick={() => !isSubmitting && onClose?.()}
         aria-hidden="true"
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-xl bg-[#0c0c0f] border border-[#27272a] rounded-xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[90vh]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="customize-practice-title"
+        className="relative w-full max-w-xl bg-[#0c0c0f] border border-[#27272a] rounded-xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[90vh]"
+      >
         {/* Header */}
         <div className="h-14 px-6 border-b border-[#27272a] flex items-center justify-between bg-[#0f0f12] shrink-0">
           <div className="flex items-center gap-2.5">
             <span className="material-symbols-outlined text-[#a78bfa] text-xl">
               tune
             </span>
-            <h3 className="text-base font-semibold text-white tracking-tight">
+            <h3 id="customize-practice-title" className="text-base font-semibold text-white tracking-tight">
               Customize Practice
             </h3>
           </div>
@@ -77,7 +110,8 @@ export default function CustomizePracticeModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-[#18181b] transition-colors cursor-pointer"
+            disabled={isSubmitting}
+            className="p-1.5 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-[#18181b] transition-colors cursor-pointer disabled:opacity-50"
             aria-label="Close dialog"
           >
             <span className="material-symbols-outlined text-lg">close</span>
@@ -86,6 +120,13 @@ export default function CustomizePracticeModal({
 
         {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Error Banner */}
+          {errorMessage && (
+            <div role="alert" className="p-3 rounded-lg bg-red-950/40 border border-red-800/60 text-xs text-red-300 flex items-start gap-2">
+              <span className="material-symbols-outlined text-sm text-red-400 mt-0.5">error</span>
+              <span>{errorMessage}</span>
+            </div>
+          )}
           {/* 1. Question Type */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] mb-2.5">
@@ -208,17 +249,28 @@ export default function CustomizePracticeModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border border-[#27272a] text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#18181b] transition-colors cursor-pointer"
+            disabled={isSubmitting}
+            className="px-4 py-2 rounded-lg border border-[#27272a] text-xs font-medium text-[#a1a1aa] hover:text-white hover:bg-[#18181b] transition-colors cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSubmit}
-            className="px-5 py-2 rounded-lg bg-[#a78bfa] hover:bg-[#c4b5fd] text-[#0a0012] text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+            disabled={isSubmitting}
+            className="px-5 py-2 rounded-lg bg-[#a78bfa] hover:bg-[#c4b5fd] text-[#0a0012] text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>Start custom practice</span>
-            <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            {isSubmitting ? (
+              <>
+                <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                <span>Generating session...</span>
+              </>
+            ) : (
+              <>
+                <span>Start custom practice</span>
+                <span className="material-symbols-outlined text-sm">arrow_forward</span>
+              </>
+            )}
           </button>
         </div>
       </div>

@@ -479,7 +479,11 @@ def submit_attempt(
 
     attempt.score = total_score
     attempt.max_score = total_max
-    attempt.percentage = round((total_score / total_max) * 100, 2) if total_max > 0 else 0.0
+    attempt.percentage = (
+        round(min(100.0, max(0.0, (total_score / total_max) * 100)), 2)
+        if total_max > 0
+        else 0.0
+    )
     attempt.status = "submitted"
     attempt.submitted_at = datetime.now(timezone.utc)
 
@@ -496,6 +500,29 @@ def submit_attempt(
     return attempt
 
 
+def list_student_course_attempts(
+    db: Session,
+    course_id: str,
+    student_id: str,
+    limit: int = 10,
+) -> List[AssessmentAttempt]:
+    """
+    List past attempts for a given student across all assessments in a course,
+    ordered by most recent first.
+    """
+    return (
+        db.query(AssessmentAttempt)
+        .join(Assessment, AssessmentAttempt.assessment_id == Assessment.id)
+        .filter(
+            Assessment.course_id == course_id,
+            AssessmentAttempt.student_id == student_id,
+        )
+        .order_by(desc(AssessmentAttempt.created_at))
+        .limit(limit)
+        .all()
+    )
+
+
 # ============================================================================
 # Security-Compliant View Formatting Helpers
 # ============================================================================
@@ -507,10 +534,13 @@ def format_assessment_for_student(assessment: Assessment) -> Dict[str, Any]:
     """
     questions = []
     for q in sorted(assessment.questions, key=lambda x: x.order_index):
+        c_name = q.concept.name if q.concept else None
         questions.append({
             "id": q.id,
             "assessment_id": q.assessment_id,
             "concept_id": q.concept_id,
+            "concept_name": c_name,
+            "concept_title": c_name,
             "question_type": q.question_type,
             "prompt": q.prompt,
             "order_index": q.order_index,
@@ -555,11 +585,14 @@ def format_attempt_view(attempt: AssessmentAttempt) -> Dict[str, Any]:
 
     for ans in sorted_answers:
         q = q_map.get(ans.question_id)
+        c_name = q.concept.name if (q and q.concept) else None
         item: Dict[str, Any] = {
             "id": ans.id,
             "attempt_id": ans.attempt_id,
             "question_id": ans.question_id,
             "concept_id": q.concept_id if q else None,
+            "concept_name": c_name,
+            "concept_title": c_name,
             "student_answer": ans.student_answer,
             "question_prompt": q.prompt if q else None,
             "question_type": q.question_type if q else None,
@@ -585,6 +618,7 @@ def format_attempt_view(attempt: AssessmentAttempt) -> Dict[str, Any]:
     return {
         "id": attempt.id,
         "assessment_id": attempt.assessment_id,
+        "assessment_title": attempt.assessment.title if attempt.assessment else None,
         "student_id": attempt.student_id,
         "status": attempt.status,
         "score": attempt.score if is_submitted else None,

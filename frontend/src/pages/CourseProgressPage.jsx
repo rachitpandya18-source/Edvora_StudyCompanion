@@ -13,7 +13,7 @@ import analyticsApi from '../api/analyticsApi';
  */
 export default function CourseProgressPage({
   courseId,
-  courseName = 'Data Structures & Algorithms',
+  courseName = 'Course Overview',
   onNavigateToPractice,
   onNavigateToTutor,
 }) {

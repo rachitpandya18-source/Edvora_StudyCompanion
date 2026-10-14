@@ -20,7 +20,7 @@ config = context.config
 
 # Set sqlalchemy.url from our application DATABASE_URL if not explicitly overridden via -x
 if not config.get_main_option("sqlalchemy.url") or config.get_main_option("sqlalchemy.url") == "driver://user:pass@localhost/dbname":
-    config.set_main_option("sqlalchemy.url", DATABASE_URL)
+    config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:

@@ -59,6 +59,8 @@ export default function CreateCoursePage({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isCreating) return;
+
     const trimmed = courseName.trim();
 
     if (!trimmed) {
@@ -76,11 +78,13 @@ export default function CreateCoursePage({
         description: description.trim(),
       });
 
-      // Upload any actual selected files
+      // Upload any actual selected files (PDF, PPT/PPTX, Video)
       if (rawFiles.length > 0) {
         showToast(`Uploading ${rawFiles.length} course material(s)...`);
+        const allowedExts = ['.pdf', '.pptx', '.ppt', '.mp4', '.mov', '.m4v', '.webm'];
         for (const file of rawFiles) {
-          if (file.name.toLowerCase().endsWith('.pdf')) {
+          const lowerName = file.name.toLowerCase();
+          if (allowedExts.some((ext) => lowerName.endsWith(ext))) {
             try {
               await coursesApi.uploadMaterial(createdCourse.id, file);
             } catch (upErr) {

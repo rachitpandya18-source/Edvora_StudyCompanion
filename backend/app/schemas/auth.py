@@ -21,9 +21,14 @@ class UserResponse(BaseModel):
     email: str
     username: str
     full_name: Optional[str] = None
+    name: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    def model_post_init(self, __context):
+        if not self.name:
+            self.name = self.full_name or self.username
 
 
 class TokenResponse(BaseModel):

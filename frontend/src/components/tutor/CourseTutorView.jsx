@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import Citation from './Citation';
 import SourcePanel from './SourcePanel';
 import OutsideMaterialNotice from './OutsideMaterialNotice';
 import FollowUpActions from './FollowUpActions';
 import TutorComposer from './TutorComposer';
 import tutorApi from '../../api/tutorApi';
+
 export default function CourseTutorView({
   user,
   courseId,
@@ -28,28 +30,56 @@ export default function CourseTutorView({
   const [isSourcesOpen, setIsSourcesOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [boundaryChoice, setBoundaryChoice] = useState(null); // 'general' | 'course-only' | null
-  const [_isTyping, setIsTyping] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const chatBottomRef = useRef(null);
+  const initPromiseRef = useRef(null);
+
+  // Helper to ensure thread ID exists without race conditions
+  const ensureThreadId = async () => {
+    if (currentThreadId) return currentThreadId;
+    if (initPromiseRef.current) {
+      try {
+        const tid = await initPromiseRef.current;
+        if (tid) return tid;
+      } catch {
+        // Fall through to retry creation
+      }
+    }
+    try {
+      const threads = await tutorApi.listThreads(courseId);
+      if (Array.isArray(threads) && threads.length > 0) {
+        const tid = threads[0].id;
+        setCurrentThreadId(tid);
+        return tid;
+      }
+      const newT = await tutorApi.createThread(courseId, { title: 'Persistent Tutor Session' });
+      setCurrentThreadId(newT.id);
+      return newT.id;
+    } catch (err) {
+      console.warn('[TUTOR] Failed to ensure thread ID:', err);
+      return null;
+    }
+  };
 
   // Initialize or load existing persistent tutor thread for this course
   useEffect(() => {
     if (!courseId) return;
 
-    tutorApi.listThreads(courseId)
-      .then((threads) => {
+    const initTask = (async () => {
+      try {
+        const threads = await tutorApi.listThreads(courseId);
+        let tid;
+        let threadDetail;
         if (Array.isArray(threads) && threads.length > 0) {
-          const tid = threads[0].id;
+          tid = threads[0].id;
           setCurrentThreadId(tid);
-          return tutorApi.getThread(courseId, tid);
+          threadDetail = await tutorApi.getThread(courseId, tid);
         } else {
-          return tutorApi.createThread(courseId, { title: 'Persistent Tutor Session' })
-            .then((newT) => {
-              setCurrentThreadId(newT.id);
-              return null;
-            });
+          const newT = await tutorApi.createThread(courseId, { title: 'Persistent Tutor Session' });
+          tid = newT.id;
+          setCurrentThreadId(tid);
         }
-      })
-      .then((threadDetail) => {
+
         if (threadDetail?.messages && threadDetail.messages.length > 0) {
           const loaded = threadDetail.messages.map((m) => {
             const hasCitations = Array.isArray(m.citations) && m.citations.length > 0;
@@ -64,7 +94,7 @@ export default function CourseTutorView({
               sourcesSummary: hasCitations
                 ? m.citations.map((c, idx) => ({
                     num: idx + 1,
-                    label: `${c.source_filename || 'Course Document'} · P.${c.page_number || 1}`,
+                    label: `${c.filename || c.source_filename || c.source_title || 'Course Document'} · P.${c.page ?? c.page_number ?? 1}`,
                     type: 'PDF',
                     sourceId: c.source_id,
                   }))
@@ -72,11 +102,33 @@ export default function CourseTutorView({
             };
           });
           setMessages(loaded);
+
+          const lastWithCits = [...threadDetail.messages].reverse().find(
+            (m) => Array.isArray(m.citations) && m.citations.length > 0
+          );
+          if (lastWithCits) {
+            setSources(
+              lastWithCits.citations.map((c, idx) => ({
+                id: idx + 1,
+                num: idx + 1,
+                title: c.filename || c.source_filename || c.source_title || 'Course Document',
+                meta: `Page ${c.page ?? c.page_number ?? 1} · Semantic relevance ${Math.round(
+                  (c.score ?? c.relevance_score ?? 0.95) * 100
+                )}%`,
+                type: 'PDF',
+                quote: c.snippet || c.exact_quote || 'Course material reference text.',
+              }))
+            );
+          }
         }
-      })
-      .catch((err) => {
+        return tid;
+      } catch (err) {
         console.warn('Persistent tutor thread load warning:', err);
-      });
+        return null;
+      }
+    })();
+
+    initPromiseRef.current = initTask;
   }, [courseId]);
 
   const userInitials =
@@ -88,7 +140,7 @@ export default function CourseTutorView({
           .join('')
           .slice(0, 2)
           .toUpperCase()
-      : 'AR');
+      : 'ST');
 
   // Track screen size for mobile drawer vs desktop pane
   useEffect(() => {
@@ -130,9 +182,14 @@ export default function CourseTutorView({
       chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 50);
 
-    if (courseId && currentThreadId) {
+    if (courseId) {
       try {
-        const assistantMsg = await tutorApi.postMessage(courseId, currentThreadId, {
+        const threadId = currentThreadId || await ensureThreadId();
+        if (!threadId) {
+          throw new Error('Unable to establish connection to tutor session.');
+        }
+
+        const assistantMsg = await tutorApi.postMessage(courseId, threadId, {
           question: text,
         });
 
@@ -148,7 +205,7 @@ export default function CourseTutorView({
           sourcesSummary: hasCits
             ? assistantMsg.citations.map((c, idx) => ({
                 num: idx + 1,
-                label: `${c.source_filename || 'Course Document'} · P.${c.page_number || 1}`,
+                label: `${c.filename || c.source_filename || c.source_title || 'Course Document'} · P.${c.page ?? c.page_number ?? 1}`,
                 type: 'PDF',
                 sourceId: c.source_id,
               }))
@@ -159,8 +216,10 @@ export default function CourseTutorView({
           const newSources = assistantMsg.citations.map((c, idx) => ({
             id: idx + 1,
             num: idx + 1,
-            title: c.source_filename || 'Course Document',
-            meta: `Page ${c.page_number || 1} · Semantic relevance ${(c.relevance_score ? Math.round(c.relevance_score * 100) : 95)}%`,
+            title: c.filename || c.source_filename || c.source_title || 'Course Document',
+            meta: `Page ${c.page ?? c.page_number ?? 1} · Semantic relevance ${Math.round(
+              (c.score ?? c.relevance_score ?? 0.95) * 100
+            )}%`,
             type: 'PDF',
             quote: c.snippet || c.exact_quote || 'Course material reference text.',
           }));
@@ -168,11 +227,6 @@ export default function CourseTutorView({
         }
 
         setMessages((prev) => [...prev, liveTutorMsg]);
-        setIsTyping(false);
-        setTimeout(() => {
-          chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
-        return;
       } catch (err) {
         console.warn('Live tutor query failed:', err);
         const errorTutorMsg = {
@@ -180,34 +234,18 @@ export default function CourseTutorView({
           sender: 'tutor',
           time: 'Just now',
           isGrounded: false,
-          lead: err?.response?.data?.detail || 'I encountered an issue connecting to the tutor service. Please ensure your course materials are indexed and try again.',
-          text: err?.response?.data?.detail || 'I encountered an issue connecting to the tutor service. Please ensure your course materials are indexed and try again.',
+          lead: err?.response?.data?.detail || err?.message || 'I encountered an issue connecting to the tutor service. Please ensure your course materials are indexed and try again.',
+          text: err?.response?.data?.detail || err?.message || 'I encountered an issue connecting to the tutor service. Please ensure your course materials are indexed and try again.',
           citations: [],
           sourcesSummary: [],
         };
         setMessages((prev) => [...prev, errorTutorMsg]);
+      } finally {
         setIsTyping(false);
         setTimeout(() => {
           chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
-        return;
       }
-    } else {
-      const notReadyMsg = {
-        id: `msg-${Date.now() + 1}`,
-        sender: 'tutor',
-        time: 'Just now',
-        isGrounded: false,
-        lead: 'Tutor session is initializing. Please wait a moment and try again.',
-        text: 'Tutor session is initializing. Please wait a moment and try again.',
-        citations: [],
-        sourcesSummary: [],
-      };
-      setMessages((prev) => [...prev, notReadyMsg]);
-      setIsTyping(false);
-      setTimeout(() => {
-        chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
     }
   };
 
@@ -321,16 +359,33 @@ export default function CourseTutorView({
                     <div className="flex-1 space-y-4">
                       {/* Main Answer Bubble */}
                       <div className="bg-[#121215] border border-[#27272a] rounded-2xl rounded-tl-sm p-5 space-y-4 text-[#fafafa] text-[15px] leading-relaxed shadow-sm">
-                        <p className="text-[#fafafa] text-[15px] leading-relaxed whitespace-pre-wrap">
-                          {msg.lead || msg.text}{' '}
+                        <div className="text-[#fafafa] text-[15px] leading-relaxed">
+                          <ReactMarkdown
+                            components={{
+                              h1: ({ _node, ...props }) => <h3 className="text-base font-semibold text-white mt-3 mb-1" {...props} />,
+                              h2: ({ _node, ...props }) => <h4 className="text-sm font-semibold uppercase tracking-wider text-[#a78bfa] mt-3 mb-1" {...props} />,
+                              h3: ({ _node, ...props }) => <h5 className="text-xs font-mono font-semibold uppercase tracking-wider text-[#a78bfa] mt-2 mb-1" {...props} />,
+                              p: ({ _node, ...props }) => <p className="mb-2.5 leading-relaxed" {...props} />,
+                              strong: ({ _node, ...props }) => <strong className="font-semibold text-white" {...props} />,
+                              ul: ({ _node, ...props }) => <ul className="list-disc pl-5 space-y-1 mb-2 text-[#d4d4d8]" {...props} />,
+                              ol: ({ _node, ...props }) => <ol className="list-decimal pl-5 space-y-1 mb-2 text-[#d4d4d8]" {...props} />,
+                              li: ({ _node, ...props }) => <li className="leading-relaxed" {...props} />,
+                              code: ({ _node, inline: isInline, ...props }) => isInline
+                                ? <code className="bg-[#18181c] text-[#a78bfa] px-1.5 py-0.5 rounded text-xs font-mono border border-[#27272a]" {...props} />
+                                : <pre className="bg-[#18181c] p-3 rounded-lg overflow-x-auto text-xs font-mono text-[#d4d4d8] border border-[#27272a] my-2"><code {...props} /></pre>,
+                            }}
+                          >
+                            {msg.lead || msg.text}
+                          </ReactMarkdown>
                           {msg.leadCitation && (
-                            <Citation
-                              number={msg.leadCitation}
-                              onClick={handleCitationClick}
-                            />
+                            <span className="inline-block ml-1">
+                              <Citation
+                                number={msg.leadCitation}
+                                onClick={handleCitationClick}
+                              />
+                            </span>
                           )}
-                          .
-                        </p>
+                        </div>
 
                         {/* Numbered Steps */}
                         {msg.steps && (
@@ -527,7 +582,7 @@ export default function CourseTutorView({
           </div>
 
           {/* Anchored Bottom Composer */}
-          <TutorComposer onSendMessage={handleSendMessage} />
+          <TutorComposer onSendMessage={handleSendMessage} disabled={isTyping} />
         </section>
 
         {/* ==================== RIGHT PANE: SOURCES VIEWER (~38% or Drawer) ==================== */}

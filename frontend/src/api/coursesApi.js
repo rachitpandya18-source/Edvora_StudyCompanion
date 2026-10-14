@@ -53,6 +53,16 @@ export async function listContentUnits(courseId, skip = 0, limit = 100) {
   });
 }
 
+export function getMaterialDownloadUrl(courseId, sourceId) {
+  return `/courses/${courseId}/materials/${sourceId}/download`;
+}
+
+export async function downloadMaterial(courseId, sourceId) {
+  return await apiFetch(`/courses/${courseId}/materials/${sourceId}/download`, {
+    method: 'GET',
+  });
+}
+
 export default {
   listCourses,
   getCourse,
@@ -62,5 +72,7 @@ export default {
   uploadMaterial,
   listSources,
   listContentUnits,
+  getMaterialDownloadUrl,
+  downloadMaterial,
 };
 

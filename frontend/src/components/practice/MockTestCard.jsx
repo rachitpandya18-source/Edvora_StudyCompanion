@@ -5,15 +5,17 @@ import React from 'react';
  * Comprehensive timed examination simulation across all course topics.
  */
 export default function MockTestCard({
-  courseName = 'Data Structures & Algorithms',
+  courseName = 'Course Overview',
+  mockData,
   mockTestData,
   onStartPractice,
 }) {
+  const data = mockData || mockTestData || {};
   const {
     title = 'Mock Test',
     description = `Simulate a timed exam across all covered topics in ${courseName}.`,
     metadata = 'Timed · Comprehensive · Exam conditions',
-  } = mockTestData || {};
+  } = data;
 
   return (
     <div className="rounded-xl border border-[#27272a] bg-[#121215] p-6 lg:p-7 flex flex-col justify-between hover:border-[#3f3f46] transition-colors shadow-sm">

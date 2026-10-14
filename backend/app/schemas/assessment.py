@@ -140,6 +140,9 @@ class AttemptAnswerResponse(BaseModel):
     id: str
     attempt_id: str
     question_id: str
+    concept_id: Optional[str] = None
+    concept_name: Optional[str] = None
+    concept_title: Optional[str] = None
     student_answer: Optional[str] = None
     is_correct: Optional[bool] = None
     marks_awarded: float = 0.0
@@ -161,6 +164,7 @@ class AssessmentAttemptResponse(BaseModel):
 
     id: str
     assessment_id: str
+    assessment_title: Optional[str] = None
     student_id: str
     status: str
     score: Optional[float] = None

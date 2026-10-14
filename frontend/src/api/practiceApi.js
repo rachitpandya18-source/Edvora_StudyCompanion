@@ -32,11 +32,18 @@ export async function listAssessments(courseId) {
   });
 }
 
+export async function getRecentAttempts(courseId, limit = 10) {
+  return await apiFetch(`/courses/${courseId}/assessments/attempts/recent?limit=${limit}`, {
+    method: 'GET',
+  });
+}
+
 export default {
   getPracticeOptions,
   generatePractice,
   getAssessment,
   submitAttempt,
   listAssessments,
+  getRecentAttempts,
 };
 

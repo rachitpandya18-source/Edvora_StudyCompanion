@@ -6,6 +6,7 @@ Reuses existing B2 retrieval (search_course_content) and B4 grounding/refusal
 evaluations with bounded recent conversation windows.
 """
 
+import re
 import logging
 from typing import Optional, List, Dict, Any, Callable
 from sqlalchemy.orm import Session
@@ -31,6 +32,7 @@ from app.services.course_tutor_service import (
     NEGATIVE_GROUNDING_PHRASES,
     VERY_LOW_RELEVANCE_THRESHOLD,
     MARGINAL_RELEVANCE_THRESHOLD,
+    synthesize_grounded_tutor_explanation,
 )
 
 logger = logging.getLogger(__name__)
@@ -208,9 +210,10 @@ def build_conversational_grounded_prompt(
 ) -> str:
     """
     Constructs a multi-turn grounded prompt enforcing:
-    1. Study materials as the sole ground truth.
-    2. Conversational context from recent turns to resolve follow-up references.
-    3. Strict anti-hallucination refusal contract.
+    1. Direct answer first.
+    2. Active step-by-step deduction for application and mathematical word problems.
+    3. Conversational context from recent turns only to resolve ambiguous follow-up references.
+    4. Strict anti-hallucination refusal contract for out-of-scope queries.
     """
     # 1. Format study material evidence
     evidence_parts = []
@@ -237,16 +240,21 @@ def build_conversational_grounded_prompt(
 
     return f"""You are an AI study tutor for the student's course.
 
-Answer the student's question using ONLY the provided study material below.
-You may use the conversation history ONLY to understand what concepts or pronouns the student is referring to (e.g., "explain step 2", "why is that?").
-However, any factual statements or explanations in your answer MUST be substantiated by the study material.
-If the answer is not present in the material or cannot be directly substantiated by it, clearly say:
-"I could not find this information in the provided course material."
-
-Do not invent facts.
-Do not use outside knowledge.
-Do not fabricate citations or page numbers.
-Keep the explanation clear, accurate, and student-friendly.
+Instructions:
+1. Answer the student's question directly and clearly. State the final answer or conclusion first.
+2. For problem-solving, mathematical, counting, or logical questions (such as Pigeonhole Principle applications, probability, or chemical formulas):
+   - Actively solve the problem step-by-step.
+   - Ground your method and definitions in the concepts, theorems, and formulas present in the provided study material.
+   - Map problem elements to the course concepts (for example, identifying the pigeons and pigeonholes).
+   - Do NOT say "I could not find this information" simply because the specific numbers or items (e.g. socks, cards, dice) in the student's problem are an application exercise of the course's principles.
+3. For factual and conceptual questions:
+   - Provide an accurate, well-structured explanation grounded in the study material.
+   - Do NOT introduce unrelated topics (e.g., do not discuss sequences or summations when answering a question on the Pigeonhole Principle or electrochemistry).
+4. Refusal contract:
+   - If the student's question is completely unrelated to any topic in the course material (e.g., asking about chemistry in a math course), respond with:
+     "I could not find this information in the provided course material."
+5. Tone:
+   - Clear, student-friendly, and educational.
 
 STUDY MATERIAL:
 {evidence_context}
@@ -266,38 +274,83 @@ def build_contextual_retrieval_query(
     recent_history: List[TutorMessage],
 ) -> str:
     """
-    Augments the current question for semantic search when follow-ups contain
-    deictic or coreferential terms (e.g. 'it', 'step 2', 'that formula', 'why is that').
+    Augments the current question for semantic search only when follow-ups contain
+    explicit deictic or coreferential terms (e.g. 'why is that', 'step 2', 'what does it mean').
+    Never pollutes standalone queries (like 'what is oxidation' or word problems like the sock drawer problem)
+    with prior conversational context.
     """
     clean_q = current_question.strip()
-    if not recent_history:
+    if not recent_history or not clean_q:
         return clean_q
 
-    # Check for short follow-up or coreference indicators
-    coreference_indicators = [
-        "step ", "it", "that", "this", "these", "those",
-        "why", "how so", "elaborate", "explain again",
-        "second", "first", "third", "formula", "example",
-    ]
     lower_q = clean_q.lower()
-    needs_context = (
-        len(clean_q.split()) <= 6
-        or any(ind in lower_q for ind in coreference_indicators)
-    )
 
-    if not needs_context:
+    stop_words = {
+        "what", "is", "the", "how", "does", "why", "are", "explain", "describe",
+        "tell", "me", "about", "a", "an", "in", "of", "to", "and", "or", "for", "with",
+        "can", "you", "which", "when", "where", "who", "whom", "this", "that", "these", "those",
+        "have", "has", "had", "will", "would", "shall", "should", "could"
+    }
+    content_words = [w for w in re.findall(r"\b[a-zA-Z]{3,}\b", lower_q) if w not in stop_words]
+
+    # Explicit problem statements or rich questions with multiple distinct domain words are standalone
+    is_word_problem = bool(re.match(
+        r"^(a|an|suppose|consider|if|in|given|assume|how\s+many|what\s+is\s+the\s+minimum|calculate|find)\b",
+        lower_q
+    ))
+    if is_word_problem and len(content_words) >= 4:
         return clean_q
 
-    # Pick the most recent user question or assistant statement to augment
+    if len(content_words) >= 6:
+        # A rich question with 6+ substantive words is self-contained
+        return clean_q
+
+    # Explicit coreference phrases that clearly indicate a follow-up
+    deictic_phrases = [
+        "why is that", "how so", "elaborate", "explain more", "tell me more",
+        "explain again", "step 1", "step 2", "step 3", "first step", "second step",
+        "third step", "that formula", "this formula", "an example of that",
+        "an example of this", "what about it", "what does that mean", "why does that",
+        "how does that", "why did you say", "in this case", "for that", "what does it mean"
+    ]
+    has_phrase = any(p in lower_q for p in deictic_phrases)
+
+    # Conjunctions vs demonstratives for "that":
+    # "that" preceded by verbs like guarantee, assume, show, prove, ensure is a conjunction, not a pronoun
+    lower_without_conjunctions = re.sub(
+        r"\b(guarantee|guaranteed|ensure|ensures|assume|assumes|show|shows|prove|proves|stated|state|states|know|knows)\s+that\b",
+        "",
+        lower_q
+    )
+    has_demonstrative = bool(re.search(r"\b(it|its|this|these|those|former|latter)\b", lower_without_conjunctions))
+    if not has_demonstrative and bool(re.search(r"\bthat\b", lower_without_conjunctions)):
+        # If "that" is used alone or as demonstrative (e.g. "what is that", "why that", or very short queries)
+        if re.search(r"\b(what|why|how|explain|about|with|for|like)\s+that\b", lower_q) or len(content_words) <= 2:
+            has_demonstrative = True
+
+    # Standalone subject question check (e.g., "what is oxidation", "define cell potential")
+    standalone_subject_match = re.search(
+        r"^(what\s+is|what\s+are|define|explain|describe|tell\s+me\s+about)\s+([a-zA-Z0-9_\-\s]{3,})$",
+        lower_q
+    )
+    if standalone_subject_match:
+        subject = standalone_subject_match.group(2).strip()
+        if not re.fullmatch(r"(it|that|this|these|those|the same|something|anything)", subject):
+            return clean_q
+
+    # If it is not a deictic phrase and does not use a demonstrative, keep clean
+    if not has_phrase and not has_demonstrative:
+        return clean_q
+
+    # Pick the most recent relevant turn to augment
     context_snippets = []
     for m in reversed(recent_history):
         if m.role == "user":
             context_snippets.append(m.content.strip())
             break
         elif m.role == "assistant":
-            # Extract first sentence or snippet of previous assistant reply
             first_line = m.content.strip().split(".")[0]
-            if first_line:
+            if first_line and not any(p in first_line.lower() for p in ["outside the scope", "could not find"]):
                 context_snippets.append(first_line)
             break
 
@@ -439,16 +492,20 @@ def post_thread_message(
     generator = llm_generator or llm_service.generate_response
     prompt = build_conversational_grounded_prompt(recent_history, clean_question, results)
 
+    answer_text = None
     try:
         raw_answer = generator(prompt)
+        answer_text = raw_answer.strip() if raw_answer else ""
     except Exception as exc:
-        logger.error(f"[TUTOR_SESSION] LLM generator failed: {exc}")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"AI Tutor service is temporarily unavailable. Please try again later. ({exc})",
-        )
-
-    answer_text = raw_answer.strip() if raw_answer else ""
+        if llm_generator is not None:
+            logger.error(f"[TUTOR_SESSION] Custom LLM generator failed: {exc}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"AI Tutor service is temporarily unavailable. Please try again later. ({exc})",
+            )
+        # Default LLM generator failed (e.g. key unconfigured, quota exceeded, or network)
+        logger.info(f"[TUTOR_SESSION] Using grounded pedagogical synthesizer for tutor answer.")
+        answer_text = synthesize_grounded_tutor_explanation(clean_question, results)
 
     # 10. Check for refusal / negative grounding phrases (Reusing B4 logic)
     lower_answer = answer_text.lower()
@@ -480,11 +537,20 @@ def post_thread_message(
             created_at=assistant_msg.created_at,
         )
 
-    # 11. Supported answer: assemble authentic citations
+    # 11. Supported answer: assemble authentic, deduplicated citations
     citations_list: List[Dict[str, Any]] = []
     citations_models: List[TutorCitation] = []
+    seen_sources = set()
     for r in results:
         src = r.get("source", {})
+        key = (src.get("source_id"), src.get("page"))
+        if key in seen_sources:
+            continue
+
+        if r.get("score", 0.0) < 0.20:
+            continue
+
+        seen_sources.add(key)
         cit = TutorCitation(
             content_unit_id=r.get("id"),
             source_id=src.get("source_id"),
@@ -492,6 +558,7 @@ def post_thread_message(
             page=src.get("page"),
             score=r.get("score"),
             content_type=src.get("type", "pdf"),
+            snippet=r.get("text", "")[:300].strip(),
         )
         citations_models.append(cit)
         citations_list.append(cit.model_dump())

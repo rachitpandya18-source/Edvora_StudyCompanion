@@ -23,7 +23,7 @@ function resolveApiBaseUrl() {
   return 'http://localhost:8000';
 }
 
-const API_BASE_URL = resolveApiBaseUrl();
+export const API_BASE_URL = resolveApiBaseUrl();
 const TOKEN_KEY = 'edvora_auth_token';
 const USER_KEY = 'edvora_user';
 
@@ -56,10 +56,33 @@ export function setStoredToken(token) {
   }
 }
 
+export function normalizeUser(rawUser) {
+  if (!rawUser) return null;
+  const name =
+    rawUser.full_name ||
+    rawUser.name ||
+    rawUser.username ||
+    (rawUser.email ? rawUser.email.split('@')[0] : 'Student');
+  const initials =
+    rawUser.initials ||
+    (name
+      .split(' ')
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'ST');
+  return {
+    ...rawUser,
+    name,
+    initials,
+  };
+}
+
 export function getStoredUser() {
   try {
     const raw = localStorage.getItem(USER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return raw ? normalizeUser(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
@@ -68,7 +91,7 @@ export function getStoredUser() {
 export function setStoredUser(user) {
   try {
     if (user) {
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      localStorage.setItem(USER_KEY, JSON.stringify(normalizeUser(user)));
     } else {
       localStorage.removeItem(USER_KEY);
     }

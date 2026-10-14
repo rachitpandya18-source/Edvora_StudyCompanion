@@ -35,6 +35,10 @@ class TutorCitation(BaseModel):
         default="pdf",
         description="Type of source content (pdf, slide, transcript, etc.)"
     )
+    snippet: Optional[str] = Field(
+        default=None,
+        description="Relevant text excerpt from the content unit"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 

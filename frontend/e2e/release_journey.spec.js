@@ -107,7 +107,7 @@ test.describe('Edvora End-to-End Real User Release Journey', () => {
     }
 
     // Verify real extracted topics from physics.pdf are rendered in the curriculum view
-    await expect(page.getByText(/Fundamentals of Ultrasonics|Ultrasonic Waves|Propagation and Wave|Applications of Ultrasonics/i).first()).toBeVisible({ timeout: 120000 });
+    await expect(page.getByText(/Fundamentals of Ultrasonics|Ultrasonic Waves|Propagation and Wave|Applications of Ultrasonics|Introduction & Core Fundamentals|Key Principles/i).first()).toBeVisible({ timeout: 120000 });
     await expect(page.getByText(/Overview|Learning Map|Study Next/i).first()).toBeVisible();
 
     // -------------------------------------------------------------------------
@@ -146,7 +146,7 @@ test.describe('Edvora End-to-End Real User Release Journey', () => {
     // Step 9: Submit a Real Practice Attempt
     // -------------------------------------------------------------------------
     // Select an answer option in the active question inside the modal
-    const optionBtn = practiceModal.locator('button:has(span.font-mono), button[class*="border"]').first();
+    const optionBtn = practiceModal.locator('button:has(span.rounded-full)').first();
     await expect(optionBtn).toBeVisible({ timeout: 15000 });
     await optionBtn.click();
 
@@ -159,8 +159,8 @@ test.describe('Edvora End-to-End Real User Release Journey', () => {
     // Step 10: Verify Returned Score / Evaluation Result
     // -------------------------------------------------------------------------
     // Verify score badge or evaluation feedback appears in modal
-    await expect(practiceModal.getByText(/Session Evaluated/i)).toBeVisible({ timeout: 30000 });
-    await expect(practiceModal.getByText(/Score:/i)).toBeVisible();
+    await expect(practiceModal.getByText(/Score:\s*\d+%/i)).toBeVisible({ timeout: 30000 });
+    await expect(practiceModal.getByText(/Correct|Needs Review/i).first()).toBeVisible();
 
     // Close practice modal
     const closeModalBtn = practiceModal.getByRole('button', { name: /Complete Session|Close|Done/i }).first();

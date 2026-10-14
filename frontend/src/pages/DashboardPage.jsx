@@ -7,20 +7,22 @@ import RecentActivity from '../components/dashboard/RecentActivity';
 import LearningSnapshot from '../components/dashboard/LearningSnapshot';
 import curriculumApi from '../api/curriculumApi';
 import analyticsApi from '../api/analyticsApi';
+import practiceApi from '../api/practiceApi';
 import {
   mockStudentProfile,
-  mockQuickStartActions,
 } from '../data/mockDashboardData';
 
 export default function DashboardPage({
   user = mockStudentProfile,
   courses = [],
+  onNavigate,
   onNavigateToCourse,
   onEnterWorkspace,
   onCreateCourse,
 }) {
   const [studyNext, setStudyNext] = useState(null);
-  const activities = [];
+  const [courseMasteries, setCourseMasteries] = useState({});
+  const [activities, setActivities] = useState([]);
   const [snapshot, setSnapshot] = useState({
     strongCount: 0,
     developingCount: 0,
@@ -37,46 +39,112 @@ export default function DashboardPage({
     curriculumApi.getStudyNext(firstCourseId)
       .then((rec) => {
         if (rec) {
+          const displayTopic = rec.concept_name || rec.topic_title || rec.concept_title || 'Core Curriculum';
+          const displayRationale = rec.rationale || rec.reason || (rec.prerequisite_depth != null
+            ? `Prioritized based on prerequisite graph depth (${rec.prerequisite_depth}).`
+            : 'Recommended next step for core curricular progression.');
+          const masteryPct = Math.round((rec.mastery_probability ?? 0) * 100);
+          const actions = rec.recommended_actions?.length
+            ? rec.recommended_actions.map((act) => ({
+                id: `act-${act.step}`,
+                step: String(act.step),
+                title: act.title,
+                durationOrPage: act.details || (act.action_type === 'practice_quiz' ? '5 questions' : '5 mins'),
+              }))
+            : [
+                {
+                  id: 'act-1',
+                  step: '1',
+                  title: 'Review Conceptual Summary with Course Tutor',
+                  durationOrPage: '5 mins',
+                },
+                {
+                  id: 'act-2',
+                  step: '2',
+                  title: 'Complete Adaptive Calibration Practice',
+                  durationOrPage: '5 questions',
+                },
+              ];
+
           setStudyNext({
+            courseId: firstCourseId,
             courseName: courses[0].title,
-            topic: rec.concept_title || rec.concept_id,
-            mastery: 0,
-            status: 'Recommended',
-            rationale: rec.reason || `Prioritized based on prerequisite graph depth (${rec.prerequisite_depth}).`,
-            recommendedActions: [
-              {
-                id: 'act-1',
-                step: '1',
-                title: 'Review Conceptual Summary with Course Tutor',
-                durationOrPage: '5 mins',
-              },
-              {
-                id: 'act-2',
-                step: '2',
-                title: 'Complete Adaptive Calibration Practice',
-                durationOrPage: '5 questions',
-              },
-            ],
+            topic: displayTopic,
+            mastery: masteryPct,
+            status: rec.status_text || 'Recommended',
+            rationale: displayRationale,
+            recommendedActions: actions,
           });
         }
       })
       .catch(() => {});
 
-    // Fetch overview analytics
-    analyticsApi.getOverview(firstCourseId)
-      .then((ov) => {
-        if (ov?.mastery_distribution) {
-          setSnapshot({
-            strongCount: ov.mastery_distribution.mastered || 0,
-            developingCount: ov.mastery_distribution.developing || 0,
-            attentionCount: ov.mastery_distribution.struggling || 0,
+    // Fetch overview analytics and mastery for each course
+    courses.forEach((c) => {
+      analyticsApi.getOverview(c.id)
+        .then((ov) => {
+          if (ov && typeof ov.overall_mastery === 'number') {
+            const masteryPct = Math.round(ov.overall_mastery * 100);
+            setCourseMasteries((prev) => ({
+              ...prev,
+              [c.id]: masteryPct,
+            }));
+            if (c.id === firstCourseId) {
+              setStudyNext((prev) => (prev ? { ...prev, mastery: masteryPct } : prev));
+            }
+          }
+          if (c.id === firstCourseId && ov?.mastery_distribution) {
+            setSnapshot({
+              strongCount: ov.mastery_distribution.mastered || 0,
+              developingCount: ov.mastery_distribution.developing || 0,
+              attentionCount: ov.mastery_distribution.struggling || 0,
+            });
+          }
+        })
+        .catch(() => {});
+    });
+
+    // Fetch real recent attempts for activities feed
+    practiceApi.getRecentAttempts(firstCourseId, 4)
+      .then((attempts) => {
+        if (Array.isArray(attempts) && attempts.length > 0) {
+          const act = attempts.map((att) => {
+            const rawScore = att.score ?? 0;
+            const maxScore = att.max_score ?? att.answers?.length ?? 1;
+            const pct = Math.min(
+              100,
+              Math.max(
+                0,
+                att.percentage !== undefined && att.percentage !== null
+                  ? Math.round(att.percentage)
+                  : Math.round((rawScore / (maxScore || 1)) * 100)
+              )
+            );
+            const variant = pct >= 80 ? 'strong' : pct >= 50 ? 'accent' : 'neutral';
+            const icon = pct >= 80 ? 'check_circle' : pct >= 50 ? 'bolt' : 'school';
+            const dateStr = att.submitted_at || att.created_at;
+            const time = dateStr
+              ? new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : 'Recent';
+
+            return {
+              id: att.id,
+              variant,
+              icon,
+              title: att.assessment_title || 'Adaptive Practice Session',
+              course: courses[0]?.title || 'Course',
+              detail: `Score: ${pct}% (${att.answers?.length || 0} questions)`,
+              time,
+            };
           });
+          setActivities(act);
         }
       })
       .catch(() => {});
   }, [courses]);
 
-  const firstName = user?.name ? user.name.split(' ')[0] : 'Alex';
+  const rawName = user?.name || user?.full_name || user?.username || 'Student';
+  const firstName = rawName.split(' ')[0];
 
   const showToast = (msg) => {
     setNotification(msg);
@@ -85,31 +153,63 @@ export default function DashboardPage({
     }, 3000);
   };
 
+  const primaryCourse = courses && courses.length > 0 ? courses[0] : null;
+  const targetCourseId = primaryCourse?.id;
+  const targetCourseTitle = primaryCourse?.title || 'Your Course';
+
+  const quickStartActions = [
+    {
+      id: 'continue',
+      category: 'CONTINUE',
+      title: 'Continue learning',
+      subtitle: `${targetCourseTitle} · Overview`,
+      icon: 'play_arrow',
+      target: 'workspace',
+      courseId: targetCourseId,
+      accentColor: 'accent',
+    },
+    {
+      id: 'tutor',
+      category: 'ASK TUTOR',
+      title: 'Ask your tutor',
+      subtitle: `Ask about ${targetCourseTitle}`,
+      icon: 'chat_bubble',
+      target: 'workspace_tutor',
+      courseId: targetCourseId,
+      accentColor: 'surface',
+    },
+    {
+      id: 'practice',
+      category: 'PRACTICE',
+      title: 'Practice weak topics',
+      subtitle: `Targeted practice for ${targetCourseTitle}`,
+      icon: 'psychology',
+      target: 'workspace_practice',
+      courseId: targetCourseId,
+      accentColor: 'attention',
+    },
+    {
+      id: 'materials',
+      category: 'RESOURCES',
+      title: 'Browse materials',
+      subtitle: `View ${targetCourseTitle} resources`,
+      icon: 'description',
+      target: 'workspace_materials',
+      courseId: targetCourseId,
+      accentColor: 'surface',
+    },
+  ];
+
   const handleQuickAction = (action) => {
-    if (action.id === 'continue') {
-      if (onNavigateToCourse) {
-        onNavigateToCourse(action.courseId, 'overview');
-      } else if (onEnterWorkspace) {
-        onEnterWorkspace(action.courseId);
-      }
-    } else if (action.id === 'tutor') {
-      if (onNavigateToCourse) {
-        onNavigateToCourse(action.courseId, 'tutor');
-      } else if (onEnterWorkspace) {
-        onEnterWorkspace(action.courseId);
-      }
-    } else if (action.id === 'practice') {
-      if (onNavigateToCourse) {
-        onNavigateToCourse(action.courseId, 'practice');
-      } else if (onEnterWorkspace) {
-        onEnterWorkspace(action.courseId);
-      }
-    } else if (action.id === 'materials') {
-      if (onNavigateToCourse) {
-        onNavigateToCourse(action.courseId, 'materials');
-      } else if (onEnterWorkspace) {
-        onEnterWorkspace(action.courseId);
-      }
+    if (!action.courseId) {
+      showToast('Please create or select a course to start.');
+      return;
+    }
+    const targetTab = action.id === 'continue' ? 'overview' : action.id;
+    if (onNavigateToCourse) {
+      onNavigateToCourse(action.courseId, targetTab);
+    } else if (onEnterWorkspace) {
+      onEnterWorkspace(action.courseId);
     }
   };
 
@@ -122,18 +222,28 @@ export default function DashboardPage({
   };
 
   const handleStartStudyNext = (item) => {
+    const courseId = item?.courseId || (courses && courses.length > 0 ? courses[0].id : null);
+    if (!courseId) {
+      showToast('Please create or select a course first.');
+      return;
+    }
     if (onNavigateToCourse) {
-      onNavigateToCourse(item.courseId, 'practice');
+      onNavigateToCourse(courseId, 'practice');
     } else if (onEnterWorkspace) {
-      onEnterWorkspace(item.courseId);
+      onEnterWorkspace(courseId);
     }
   };
 
   const handleViewCourse = (item) => {
+    const courseId = item?.courseId || (courses && courses.length > 0 ? courses[0].id : null);
+    if (!courseId) {
+      showToast('Please create or select a course first.');
+      return;
+    }
     if (onNavigateToCourse) {
-      onNavigateToCourse(item.courseId, 'overview');
+      onNavigateToCourse(courseId, 'overview');
     } else if (onEnterWorkspace) {
-      onEnterWorkspace(item.courseId);
+      onEnterWorkspace(courseId);
     }
   };
 
@@ -150,7 +260,9 @@ export default function DashboardPage({
         coursesSection.scrollIntoView({ behavior: 'smooth' });
       }
     } else if (navId === 'settings') {
-      showToast('Settings panel will be available in the next release.');
+      if (onNavigate) {
+        onNavigate('settings');
+      }
     }
   };
 
@@ -195,7 +307,7 @@ export default function DashboardPage({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {mockQuickStartActions.map((action) => (
+            {quickStartActions.map((action) => (
               <QuickStartCard
                 key={action.id}
                 category={action.category}
@@ -259,7 +371,10 @@ export default function DashboardPage({
                 courses.map((course) => (
                   <CourseCard
                     key={course.id}
-                    course={course}
+                    course={{
+                      ...course,
+                      mastery: courseMasteries[course.id] ?? course.mastery ?? 0,
+                    }}
                     onContinue={handleContinueCourse}
                   />
                 ))

@@ -1,4 +1,17 @@
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Ensure environment variables are loaded regardless of process launch directory
+_backend_dir = Path(__file__).resolve().parent.parent
+_backend_env = _backend_dir / ".env"
+_root_env = _backend_dir.parent / ".env"
+if _backend_env.exists():
+    load_dotenv(_backend_env)
+if _root_env.exists():
+    load_dotenv(_root_env)
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,6 +28,7 @@ from app.api.routes.learner_mastery import router as learner_mastery_router
 from app.api.routes.study_planner import router as study_planner_router
 from app.api.routes.practice import router as practice_router
 from app.api.routes.analytics import router as analytics_router
+from app.api.routes.settings import router as settings_router
 
 
 from contextlib import asynccontextmanager
@@ -65,6 +79,7 @@ app.include_router(learner_mastery_router)
 app.include_router(study_planner_router)
 app.include_router(practice_router)
 app.include_router(analytics_router)
+app.include_router(settings_router)
 app.include_router(tutor_router)
 app.include_router(documents_router)
 app.include_router(quiz_router)

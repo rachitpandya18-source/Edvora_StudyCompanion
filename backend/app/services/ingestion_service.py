@@ -88,12 +88,140 @@ def ingest_pdf_to_course(
         _mark_source_failed(db, source_id)
         raise ValueError(f"Failed to extract text from PDF: {exc}") from exc
 
-    if not pages:
-        logger.warning(f"[INGESTION] PDF '{file_path}' contained 0 readable pages.")
-        _mark_source_failed(db, source_id)
-        raise ValueError("PDF contained no readable pages or text.")
+    return _process_pages_to_course(
+        db=db,
+        course_id=course_id,
+        source=source,
+        pages=pages,
+        file_path=file_path,
+        replace_existing=replace_existing,
+        media_type_label="PDF",
+    )
 
-    # 3. Chunk text across pages preserving 1-based page numbers
+
+def ingest_pptx_to_course(
+    db: Session,
+    course_id: str,
+    source_id: str,
+    file_path: str,
+    replace_existing: bool = True
+) -> Dict[str, Any]:
+    """
+    Extract, chunk, embed, and persist a PPTX presentation's slides
+    linked to an existing Course and Source.
+    """
+    from app.services.pptx_service import extract_pptx_slides
+
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise ValueError(f"Course '{course_id}' not found.")
+
+    source = db.query(Source).filter(Source.id == source_id).first()
+    if not source:
+        raise ValueError(f"Source '{source_id}' not found.")
+
+    if source.course_id != course_id:
+        raise ValueError(
+            f"Source '{source_id}' belongs to course '{source.course_id}', "
+            f"not requested course '{course_id}'."
+        )
+
+    try:
+        slides = extract_pptx_slides(file_path)
+    except Exception as exc:
+        logger.error(f"[INGESTION] Failed to extract slides from '{file_path}': {exc}")
+        _mark_source_failed(db, source_id)
+        raise ValueError(f"Failed to extract slides from presentation: {exc}") from exc
+
+    return _process_pages_to_course(
+        db=db,
+        course_id=course_id,
+        source=source,
+        pages=slides,
+        file_path=file_path,
+        replace_existing=replace_existing,
+        media_type_label="Presentation",
+    )
+
+
+def ingest_video_to_course(
+    db: Session,
+    course_id: str,
+    source_id: str,
+    file_path: str,
+    replace_existing: bool = True
+) -> Dict[str, Any]:
+    """
+    Extract, chunk, embed, and persist a video recording's segments or metadata
+    linked to an existing Course and Source.
+    """
+    from app.services.video_service import extract_video_content
+
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise ValueError(f"Course '{course_id}' not found.")
+
+    source = db.query(Source).filter(Source.id == source_id).first()
+    if not source:
+        raise ValueError(f"Source '{source_id}' not found.")
+
+    if source.course_id != course_id:
+        raise ValueError(
+            f"Source '{source_id}' belongs to course '{source.course_id}', "
+            f"not requested course '{course_id}'."
+        )
+
+    try:
+        segments = extract_video_content(file_path, source.filename)
+    except Exception as exc:
+        logger.error(f"[INGESTION] Failed to process video '{file_path}': {exc}")
+        _mark_source_failed(db, source_id)
+        raise ValueError(f"Failed to process video: {exc}") from exc
+
+    return _process_pages_to_course(
+        db=db,
+        course_id=course_id,
+        source=source,
+        pages=segments,
+        file_path=file_path,
+        replace_existing=replace_existing,
+        media_type_label="Video",
+    )
+
+
+def ingest_material_to_course(
+    db: Session,
+    course_id: str,
+    source_id: str,
+    file_path: str,
+    source_type: str = "pdf",
+    replace_existing: bool = True
+) -> Dict[str, Any]:
+    """Unified dispatcher for ingesting PDF, PPTX, or Video into a course."""
+    st = source_type.lower()
+    if st in ("ppt", "pptx"):
+        return ingest_pptx_to_course(db, course_id, source_id, file_path, replace_existing)
+    elif st in ("video", "mp4", "mov", "m4v", "webm"):
+        return ingest_video_to_course(db, course_id, source_id, file_path, replace_existing)
+    else:
+        return ingest_pdf_to_course(db, course_id, source_id, file_path, replace_existing)
+
+
+def _process_pages_to_course(
+    db: Session,
+    course_id: str,
+    source: Source,
+    pages: List[Dict[str, Any]],
+    file_path: str,
+    replace_existing: bool,
+    media_type_label: str = "Document",
+) -> Dict[str, Any]:
+    source_id = source.id
+    if not pages:
+        logger.warning(f"[INGESTION] {media_type_label} '{file_path}' contained 0 readable pages/units.")
+        _mark_source_failed(db, source_id)
+        raise ValueError(f"{media_type_label} contained no readable pages or text.")
+
     prepared_units: List[Dict[str, Any]] = []
     unit_index = 0
 
@@ -106,7 +234,6 @@ def ingest_pdf_to_course(
             if not chunk_str.strip():
                 continue
 
-            # Calculate char boundaries if found in page
             c_start = page_text.find(chunk_str) if page_text else None
             c_end = (c_start + len(chunk_str)) if (c_start is not None and c_start != -1) else None
             if c_start == -1:
@@ -132,9 +259,8 @@ def ingest_pdf_to_course(
     if not prepared_units:
         logger.warning(f"[INGESTION] No non-empty chunks created for '{file_path}'.")
         _mark_source_failed(db, source_id)
-        raise ValueError("Could not create any content units from the PDF.")
+        raise ValueError(f"Could not create any content units from the {media_type_label}.")
 
-    # 4. Batch generate embeddings for all prepared chunks
     try:
         texts_to_embed = [u["text"] for u in prepared_units]
         embeddings = create_embeddings(texts_to_embed)
@@ -143,7 +269,6 @@ def ingest_pdf_to_course(
         _mark_source_failed(db, source_id)
         raise RuntimeError(f"Embedding generation failed: {exc}") from exc
 
-    # 5. Build ContentUnit ORM instances with serialized embeddings
     new_content_units: List[ContentUnit] = []
     for item, emb_vec in zip(prepared_units, embeddings):
         serialized_vec = serialize_embedding(emb_vec)
@@ -161,18 +286,13 @@ def ingest_pdf_to_course(
         )
         new_content_units.append(unit)
 
-    # 6. Atomic replacement in database
     try:
-        # If replace_existing is True, remove existing content units for this source
         if replace_existing:
             db.query(ContentUnit).filter(
                 ContentUnit.source_id == source_id
             ).delete(synchronize_session=False)
 
-        # Bulk add new content units
         db.add_all(new_content_units)
-
-        # Mark source completed
         source.processing_status = "completed"
         source.file_path = file_path
         db.commit()
@@ -199,10 +319,6 @@ def ingest_pdf_to_course(
 
 
 def _mark_source_failed(db: Session, source_id: str) -> None:
-    """
-    Safely record 'failed' status for a source in an isolated commit,
-    even after a rollback of the content unit transaction.
-    """
     try:
         source = db.query(Source).filter(Source.id == source_id).first()
         if source:

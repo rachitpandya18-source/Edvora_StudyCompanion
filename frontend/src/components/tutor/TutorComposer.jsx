@@ -4,13 +4,17 @@ import React, { useState } from 'react';
  * TutorComposer
  * Anchored input at the bottom of the conversation pane.
  */
-export default function TutorComposer({ onSendMessage }) {
+export default function TutorComposer({
+  onSendMessage,
+  disabled = false,
+  placeholder = 'Ask something about this course...',
+}) {
   const [text, setText] = useState('');
   const [attachmentNotice, setAttachmentNotice] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (disabled || !text.trim()) return;
     onSendMessage?.(text.trim());
     setText('');
   };
@@ -52,9 +56,10 @@ export default function TutorComposer({ onSendMessage }) {
           <input
             type="text"
             value={text}
+            disabled={disabled}
             onChange={(e) => setText(e.target.value)}
-            className="w-full bg-transparent border-0 text-sm text-[#fafafa] placeholder:text-[#71717a] focus:outline-none focus:ring-0 px-2 py-3"
-            placeholder="Ask something about this course..."
+            className="w-full bg-transparent border-0 text-sm text-[#fafafa] placeholder:text-[#71717a] focus:outline-none focus:ring-0 px-2 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            placeholder={placeholder}
             aria-label="Ask a question about this course"
           />
 
@@ -66,7 +71,7 @@ export default function TutorComposer({ onSendMessage }) {
 
             <button
               type="submit"
-              disabled={!text.trim()}
+              disabled={disabled || !text.trim()}
               className="w-8 h-8 rounded bg-[#a78bfa] text-[#0a0012] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center hover:bg-[#c4b5fd] transition-colors cursor-pointer"
               title="Send question"
               aria-label="Send question"

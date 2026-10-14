@@ -11,13 +11,13 @@ export default function NeedsAttentionCard({
   onAskTutor,
 }) {
   const {
-    topic = 'AVL Trees',
-    mastery = 43,
-    description = 'Recent answers suggest difficulty with Left-Right and Right-Left rotations.',
-    recommendedNextStep = 'Review AVL rotations → Practice 3 targeted questions',
+    topic = 'Course Topics',
+    mastery = 0,
+    description = 'Complete practice sessions to identify topics requiring additional study.',
+    recommendedNextStep = 'Review course materials → Complete 3 adaptive practice questions',
     footnote = 'Based on your recent assessment and tutoring activity.',
     practiceActionLabel = 'Start adaptive practice',
-    tutorActionLabel = 'Ask Tutor about rotations →',
+    tutorActionLabel = 'Ask Tutor about concepts →',
   } = data || {};
 
   return (

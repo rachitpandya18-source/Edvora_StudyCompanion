@@ -68,6 +68,30 @@ def list_course_assessments(
 
 
 @router.get(
+    "/attempts/recent",
+    response_model=List[AssessmentAttemptResponse],
+    summary="List recent attempts across all assessments in the course",
+)
+def list_recent_course_attempts(
+    course_id: str,
+    limit: int = 10,
+    student_id: str = Depends(get_current_student_id),
+    course: Course = Depends(verify_course_owner),
+    db: Session = Depends(get_db),
+):
+    """
+    Retrieve recent completed or in-progress assessment attempts by this student.
+    """
+    attempts = assessment_service.list_student_course_attempts(
+        db=db,
+        course_id=course_id,
+        student_id=student_id,
+        limit=limit,
+    )
+    return [assessment_service.format_attempt_view(att) for att in attempts]
+
+
+@router.get(
     "/{assessment_id}",
     response_model=AssessmentResponse,
     summary="Get assessment details and questions",

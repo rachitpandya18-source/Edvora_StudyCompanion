@@ -1,10 +1,19 @@
 import os
+from pathlib import Path
 from typing import Generator
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
-# Load environment variables
+# Robustly load environment variables from backend/.env or workspace root .env
+_backend_dir = Path(__file__).resolve().parent.parent.parent
+_backend_env = _backend_dir / ".env"
+_root_env = _backend_dir.parent / ".env"
+
+if _backend_env.exists():
+    load_dotenv(_backend_env)
+if _root_env.exists():
+    load_dotenv(_root_env)
 load_dotenv()
 
 # Database URL from environment with PostgreSQL as standard target,
